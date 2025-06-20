@@ -1,0 +1,516 @@
+// drag-drop.js - Comprehensive Drag and Drop Handler for Kanban Board
+
+window.dragDropHandler = {
+    draggedElement: null,
+    draggedTaskId: null,
+    sourceColumn: null,
+    
+    // Initialize drag and drop functionality
+    init: function() {
+        console.log('Initializing drag and drop functionality...');
+        this.setupDragAndDrop();
+        this.setupKeyboardHandlers();
+    },
+    
+    // Setup drag and drop event listeners
+    setupDragAndDrop: function() {
+        // Setup drop zones (kanban columns)
+        this.setupDropZones();
+        
+        // Setup draggable items (will be called when tasks are rendered)
+        this.setupDraggableItems();
+        
+        // Listen for task updates to re-setup draggable items
+        if (window.taskManager) {
+            const originalRenderKanban = window.taskManager.renderKanbanBoard;
+            window.taskManager.renderKanbanBoard = () => {
+                originalRenderKanban.call(window.taskManager);
+                this.setupDraggableItems();
+            };
+        }
+    },
+    
+    // Setup drop zones for kanban columns
+    setupDropZones: function() {
+        const dropZones = document.querySelectorAll('.kanban-tasks');
+        
+        dropZones.forEach(zone => {
+            // Remove existing listeners
+            zone.removeEventListener('dragover', this.handleDragOver);
+            zone.removeEventListener('dragenter', this.handleDragEnter);
+            zone.removeEventListener('dragleave', this.handleDragLeave);
+            zone.removeEventListener('drop', this.handleDrop);
+            
+            // Add new listeners
+            zone.addEventListener('dragover', this.handleDragOver.bind(this));
+            zone.addEventListener('dragenter', this.handleDragEnter.bind(this));
+            zone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+            zone.addEventListener('drop', this.handleDrop.bind(this));
+        });
+    },
+    
+    // Setup draggable items for tasks
+    setupDraggableItems: function() {
+        const draggableItems = document.querySelectorAll('.kanban-task');
+        
+        draggableItems.forEach(item => {
+            // Remove existing listeners
+            item.removeEventListener('dragstart', this.handleDragStart);
+            item.removeEventListener('dragend', this.handleDragEnd);
+            
+            // Ensure draggable attribute is set
+            item.draggable = true;
+            
+            // Add new listeners
+            item.addEventListener('dragstart', this.handleDragStart.bind(this));
+            item.addEventListener('dragend', this.handleDragEnd.bind(this));
+            
+            // Add touch events for mobile support
+            item.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+            item.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+            item.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+        });
+    },
+    
+    // Drag start handler
+    handleDragStart: function(e) {
+        this.draggedElement = e.target;
+        this.draggedTaskId = e.target.dataset.taskId;
+        this.sourceColumn = e.target.closest('.kanban-tasks').dataset.status;
+        
+        // Add dragging class for visual feedback
+        e.target.classList.add('dragging');
+        
+        // Set drag data
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+        e.dataTransfer.setData('text/plain', this.draggedTaskId);
+        
+        // Create a custom drag image
+        this.createDragImage(e);
+        
+        console.log('Drag started:', this.draggedTaskId, 'from', this.sourceColumn);
+    },
+    
+    // Create custom drag image
+    createDragImage: function(e) {
+        const dragImage = e.target.cloneNode(true);
+        dragImage.style.transform = 'rotate(5deg)';
+        dragImage.style.opacity = '0.8';
+        dragImage.style.pointerEvents = 'none';
+        dragImage.style.position = 'absolute';
+        dragImage.style.top = '-1000px';
+        dragImage.style.left = '-1000px';
+        
+        document.body.appendChild(dragImage);
+        
+        if (e.dataTransfer.setDragImage) {
+            e.dataTransfer.setDragImage(dragImage, e.offsetX, e.offsetY);
+        }
+        
+        // Clean up drag image after a short delay
+        setTimeout(() => {
+            if (dragImage.parentNode) {
+                dragImage.parentNode.removeChild(dragImage);
+            }
+        }, 100);
+    },
+    
+    // Drag over handler
+    handleDragOver: function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Add visual feedback
+        const dropZone = e.currentTarget;
+        if (!dropZone.classList.contains('drag-over')) {
+            dropZone.classList.add('drag-over');
+        }
+        
+        // Show insertion indicator
+        this.showInsertionIndicator(e);
+    },
+    
+    // Drag enter handler
+    handleDragEnter: function(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    },
+    
+    // Drag leave handler
+    handleDragLeave: function(e) {
+        // Only remove drag-over if leaving the drop zone completely
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            e.currentTarget.classList.remove('drag-over');
+            this.removeInsertionIndicator();
+        }
+    },
+    
+    // Drop handler with enhanced business logic
+    handleDrop: function(e) {
+        e.preventDefault();
+        
+        const dropZone = e.currentTarget;
+        const newStatus = dropZone.dataset.status;
+        
+        // Remove visual feedback
+        dropZone.classList.remove('drag-over');
+        this.removeInsertionIndicator();
+        
+        if (!this.draggedTaskId || !newStatus) {
+            console.error('Invalid drop: missing task ID or status');
+            return;
+        }
+        
+        // Don't do anything if dropped in same column
+        if (newStatus === this.sourceColumn) {
+            console.log('Dropped in same column, no action needed');
+            return;
+        }
+        
+        // Check business rules before allowing drop
+        const currentUser = window.auth?.currentUser;
+        if (!currentUser) {
+            window.showNotification('User not authenticated', 'error');
+            return;
+        }
+        
+        // Check if user is blocked from making changes (except to paused)
+        if (window.taskManager && typeof window.taskManager.isUserBlocked === 'function') {
+            if (window.taskManager.isUserBlocked(currentUser) && newStatus !== 'paused') {
+                window.showNotification('You are blocked from changing task status. Move overdue tasks to "Paused" first.', 'error');
+                this.showDropFeedback(dropZone, false);
+                return;
+            }
+        }
+        
+        console.log('Dropping task:', this.draggedTaskId, 'to status:', newStatus);
+        
+        // Update task status with enhanced logic
+        if (window.taskManager && typeof window.taskManager.updateTaskStatus === 'function') {
+            window.taskManager.updateTaskStatus(this.draggedTaskId, newStatus);
+        } else {
+            // Fallback to direct update
+            this.updateTaskStatus(this.draggedTaskId, newStatus);
+        }
+        
+        // Show success feedback
+        this.showDropFeedback(dropZone, true);
+    },
+    
+    // Drag end handler
+    handleDragEnd: function(e) {
+        // Remove dragging class
+        if (this.draggedElement) {
+            this.draggedElement.classList.remove('dragging');
+        }
+        
+        // Clean up drag state
+        this.draggedElement = null;
+        this.draggedTaskId = null;
+        this.sourceColumn = null;
+        
+        // Remove all drag-over classes
+        document.querySelectorAll('.kanban-tasks').forEach(zone => {
+            zone.classList.remove('drag-over');
+        });
+        
+        // Remove insertion indicator
+        this.removeInsertionIndicator();
+    },
+    
+    // Show insertion indicator for better UX
+    showInsertionIndicator: function(e) {
+        const dropZone = e.currentTarget;
+        const afterElement = this.getDragAfterElement(dropZone, e.clientY);
+        
+        // Remove existing indicator
+        this.removeInsertionIndicator();
+        
+        // Create new indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        indicator.style.height = '2px';
+        indicator.style.background = '#3b82f6';
+        indicator.style.margin = '4px 0';
+        indicator.style.borderRadius = '2px';
+        indicator.style.opacity = '0.8';
+        
+        if (afterElement == null) {
+            dropZone.appendChild(indicator);
+        } else {
+            dropZone.insertBefore(indicator, afterElement);
+        }
+    },
+    
+    // Remove insertion indicator
+    removeInsertionIndicator: function() {
+        const indicator = document.querySelector('.drop-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    },
+    
+    // Get element after which to insert the dragged item
+    getDragAfterElement: function(container, y) {
+        const draggableElements = [...container.querySelectorAll('.kanban-task:not(.dragging)')];
+        
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    },
+    
+    // Show visual feedback for drop action
+    showDropFeedback: function(dropZone, success) {
+        const feedback = document.createElement('div');
+        feedback.className = 'drop-feedback';
+        feedback.style.position = 'absolute';
+        feedback.style.top = '50%';
+        feedback.style.left = '50%';
+        feedback.style.transform = 'translate(-50%, -50%)';
+        feedback.style.background = success ? '#10b981' : '#ef4444';
+        feedback.style.color = 'white';
+        feedback.style.padding = '8px 16px';
+        feedback.style.borderRadius = '8px';
+        feedback.style.fontSize = '14px';
+        feedback.style.fontWeight = '500';
+        feedback.style.zIndex = '1000';
+        feedback.style.pointerEvents = 'none';
+        feedback.textContent = success ? 'Task moved!' : 'Move failed';
+        
+        dropZone.style.position = 'relative';
+        dropZone.appendChild(feedback);
+        
+        // Animate and remove
+        setTimeout(() => {
+            feedback.style.opacity = '0';
+            feedback.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            feedback.style.transition = 'all 0.3s ease';
+            
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 300);
+        }, 1000);
+    },
+    
+    // Update task status in database
+    updateTaskStatus: async function(taskId, newStatus) {
+        try {
+            if (window.taskManager && typeof window.taskManager.updateTaskStatus === 'function') {
+                await window.taskManager.updateTaskStatus(taskId, newStatus);
+                
+                // Show success notification
+                if (window.showNotification) {
+                    window.showNotification('Task status updated successfully!', 'success');
+                }
+            } else {
+                console.error('TaskManager updateTaskStatus function not available');
+                if (window.showNotification) {
+                    window.showNotification('Error updating task status', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error updating task status:', error);
+            if (window.showNotification) {
+                window.showNotification('Error updating task status', 'error');
+            }
+        }
+    },
+    
+    // Touch event handlers for mobile support
+    handleTouchStart: function(e) {
+        this.touchStartTime = Date.now();
+        this.touchElement = e.target.closest('.kanban-task');
+        this.initialTouchPosition = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+        this.touchMoved = false;
+    },
+    
+    handleTouchMove: function(e) {
+        if (!this.touchElement) return;
+        
+        const currentTouch = e.touches[0];
+        const deltaX = Math.abs(currentTouch.clientX - this.initialTouchPosition.x);
+        const deltaY = Math.abs(currentTouch.clientY - this.initialTouchPosition.y);
+        
+        // If moved more than 10px, consider it a drag
+        if (deltaX > 10 || deltaY > 10) {
+            this.touchMoved = true;
+            e.preventDefault();
+            
+            // Start touch drag if not already started
+            if (!this.touchElement.classList.contains('touch-dragging')) {
+                this.startTouchDrag(this.touchElement);
+            }
+            
+            // Update position
+            this.updateTouchDragPosition(currentTouch.clientX, currentTouch.clientY);
+        }
+    },
+    
+    handleTouchEnd: function(e) {
+        if (!this.touchElement) return;
+        
+        if (this.touchMoved && this.touchElement.classList.contains('touch-dragging')) {
+            // Handle touch drop
+            const dropTarget = this.getTouchDropTarget(e.changedTouches[0]);
+            if (dropTarget) {
+                this.handleTouchDrop(dropTarget);
+            }
+            this.endTouchDrag();
+        } else if (!this.touchMoved) {
+            // Handle tap (if not moved)
+            const touchDuration = Date.now() - this.touchStartTime;
+            if (touchDuration < 300) {
+                // Short tap - show task details
+                const taskId = this.touchElement.dataset.taskId;
+                const task = window.taskManager.tasks.find(t => t.id === taskId);
+                if (task) {
+                    window.taskManager.showTaskDetails(task);
+                }
+            }
+        }
+        
+        this.touchElement = null;
+        this.touchMoved = false;
+    },
+    
+    startTouchDrag: function(element) {
+        element.classList.add('touch-dragging');
+        this.draggedTaskId = element.dataset.taskId;
+        this.sourceColumn = element.closest('.kanban-tasks').dataset.status;
+        
+        // Create ghost element
+        this.createTouchGhost(element);
+        
+        // Add visual feedback to columns
+        document.querySelectorAll('.kanban-tasks').forEach(zone => {
+            zone.classList.add('touch-drop-zone');
+        });
+    },
+    
+    createTouchGhost: function(element) {
+        const ghost = element.cloneNode(true);
+        ghost.className = 'touch-ghost';
+        ghost.style.position = 'fixed';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '10000';
+        ghost.style.opacity = '0.8';
+        ghost.style.transform = 'rotate(5deg) scale(1.05)';
+        ghost.style.width = element.offsetWidth + 'px';
+        
+        document.body.appendChild(ghost);
+        this.touchGhost = ghost;
+    },
+    
+    updateTouchDragPosition: function(x, y) {
+        if (this.touchGhost) {
+            this.touchGhost.style.left = (x - 50) + 'px';
+            this.touchGhost.style.top = (y - 50) + 'px';
+        }
+    },
+    
+    getTouchDropTarget: function(touch) {
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        return elementBelow ? elementBelow.closest('.kanban-tasks') : null;
+    },
+    
+    handleTouchDrop: function(dropTarget) {
+        if (!dropTarget || !this.draggedTaskId) return;
+        
+        const newStatus = dropTarget.dataset.status;
+        if (newStatus && newStatus !== this.sourceColumn) {
+            // Check business rules
+            const currentUser = window.auth?.currentUser;
+            if (!currentUser) {
+                window.showNotification('User not authenticated', 'error');
+                return;
+            }
+            
+            if (window.taskManager && typeof window.taskManager.isUserBlocked === 'function') {
+                if (window.taskManager.isUserBlocked(currentUser) && newStatus !== 'paused') {
+                    window.showNotification('You are blocked from changing task status. Move overdue tasks to "Paused" first.', 'error');
+                    return;
+                }
+            }
+            
+            // Update task status
+            if (window.taskManager && typeof window.taskManager.updateTaskStatus === 'function') {
+                window.taskManager.updateTaskStatus(this.draggedTaskId, newStatus);
+            }
+        }
+    },
+    
+    endTouchDrag: function() {
+        // Remove ghost element
+        if (this.touchGhost) {
+            this.touchGhost.remove();
+            this.touchGhost = null;
+        }
+        
+        // Remove visual feedback
+        document.querySelectorAll('.kanban-task').forEach(task => {
+            task.classList.remove('touch-dragging');
+        });
+        
+        document.querySelectorAll('.kanban-tasks').forEach(zone => {
+            zone.classList.remove('touch-drop-zone');
+        });
+        
+        // Reset state
+        this.draggedTaskId = null;
+        this.sourceColumn = null;
+    },
+    
+    // Setup keyboard handlers for accessibility
+    setupKeyboardHandlers: function() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.draggedElement) {
+                // Cancel drag operation
+                this.handleDragEnd({ target: this.draggedElement });
+            }
+        });
+    }
+};
+
+// Add touch-specific CSS
+const touchStyles = `
+    .kanban-task.touch-dragging {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+    
+    .kanban-tasks.touch-drop-zone {
+        background: rgba(59, 130, 246, 0.1);
+        border: 2px dashed rgba(59, 130, 246, 0.4);
+    }
+    
+    .touch-ghost {
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(59, 130, 246, 0.5);
+    }
+    
+    @media (hover: none) and (pointer: coarse) {
+        .kanban-task {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+    }
+`;
+
+// Inject touch styles
+const touchStyleSheet = document.createElement('style');
+touchStyleSheet.textContent = touchStyles;
+document.head.appendChild(touchStyleSheet);

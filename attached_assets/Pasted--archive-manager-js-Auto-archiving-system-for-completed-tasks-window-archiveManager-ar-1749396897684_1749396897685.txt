@@ -1,0 +1,448 @@
+// archive-manager.js - Auto-archiving system for completed tasks
+window.archiveManager = {
+    archiveIntervalId: null,
+    archiveDelay: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    pendingArchives: new Map(), // Track tasks pending archive
+
+    // Initialize archive manager
+    init: function() {
+        console.log('Initializing archive manager...');
+        this.loadPendingArchives();
+        this.startArchiveMonitoring();
+        this.setupEventListeners();
+    },
+
+    // Setup event listeners
+    setupEventListeners: function() {
+        // Listen for task status changes
+        if (window.taskManager) {
+            const originalUpdateTask = window.taskManager.updateTask;
+            window.taskManager.updateTask = async (...args) => {
+                const result = await originalUpdateTask.apply(window.taskManager, args);
+                
+                // Check if task was marked as done
+                const [taskId, updateData] = args;
+                if (updateData.status === 'done') {
+                    this.scheduleForArchive(taskId);
+                } else if (updateData.status !== 'done') {
+                    this.cancelArchiveSchedule(taskId);
+                }
+                
+                return result;
+            };
+        }
+
+        // Setup manual archive buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.archive-now-btn')) {
+                const taskId = e.target.dataset.taskId;
+                if (taskId) {
+                    this.archiveTaskNow(taskId);
+                }
+            }
+        });
+    },
+
+    // Start monitoring for tasks to archive
+    startArchiveMonitoring: function() {
+        // Check every hour for tasks ready to archive
+        this.archiveIntervalId = setInterval(() => {
+            this.processScheduledArchives();
+        }, 60 * 60 * 1000); // 1 hour
+
+        // Also check immediately
+        this.processScheduledArchives();
+    },
+
+    // Stop archive monitoring
+    stopArchiveMonitoring: function() {
+        if (this.archiveIntervalId) {
+            clearInterval(this.archiveIntervalId);
+            this.archiveIntervalId = null;
+        }
+    },
+
+    // Schedule a task for archiving
+    scheduleForArchive: function(taskId) {
+        const archiveTime = Date.now() + this.archiveDelay;
+        this.pendingArchives.set(taskId, {
+            taskId: taskId,
+            scheduledTime: archiveTime,
+            notified: false
+        });
+        
+        this.savePendingArchives();
+        
+        // Show notification
+        window.showNotification('Task will be auto-archived in 24 hours', 'info');
+        
+        console.log(`Task ${taskId} scheduled for archive at ${new Date(archiveTime)}`);
+    },
+
+    // Cancel archive schedule for a task
+    cancelArchiveSchedule: function(taskId) {
+        if (this.pendingArchives.has(taskId)) {
+            this.pendingArchives.delete(taskId);
+            this.savePendingArchives();
+            console.log(`Archive schedule cancelled for task ${taskId}`);
+        }
+    },
+
+    // Process tasks scheduled for archiving
+    processScheduledArchives: function() {
+        const now = Date.now();
+        const tasksToArchive = [];
+        const tasksToNotify = [];
+
+        for (const [taskId, archiveData] of this.pendingArchives) {
+            // Check if task is ready for archiving
+            if (now >= archiveData.scheduledTime) {
+                tasksToArchive.push(taskId);
+            }
+            // Check if we should send a notification (2 hours before archive)
+            else if (!archiveData.notified && now >= (archiveData.scheduledTime - (2 * 60 * 60 * 1000))) {
+                tasksToNotify.push(taskId);
+                archiveData.notified = true;
+            }
+        }
+
+        // Send notifications for upcoming archives
+        tasksToNotify.forEach(taskId => {
+            const task = window.taskManager?.tasks.find(t => t.id === taskId);
+            if (task) {
+                this.showArchiveNotification(task);
+            }
+        });
+
+        // Archive ready tasks
+        tasksToArchive.forEach(taskId => {
+            this.archiveTask(taskId);
+        });
+
+        if (tasksToNotify.length > 0 || tasksToArchive.length > 0) {
+            this.savePendingArchives();
+        }
+    },
+
+    // Archive a task
+    archiveTask: async function(taskId) {
+        try {
+            const task = window.taskManager?.tasks.find(t => t.id === taskId);
+            if (!task) {
+                console.warn(`Task ${taskId} not found for archiving`);
+                this.pendingArchives.delete(taskId);
+                return;
+            }
+
+            // Only archive if task is still in 'done' status
+            if (task.status !== 'done') {
+                console.log(`Task ${taskId} no longer in 'done' status, cancelling archive`);
+                this.pendingArchives.delete(taskId);
+                return;
+            }
+
+            // Update task status to archived
+            await window.taskManager.updateTask(taskId, {
+                status: 'archived',
+                archivedAt: new Date(),
+                archivedBy: 'system',
+                autoArchived: true
+            });
+
+            // Remove from pending archives
+            this.pendingArchives.delete(taskId);
+            
+            // Show notification
+            window.showNotification(`Task "${task.title}" has been auto-archived`, 'info');
+            
+            console.log(`Task ${taskId} auto-archived successfully`);
+
+        } catch (error) {
+            console.error(`Error archiving task ${taskId}:`, error);
+            
+            // Remove from pending archives on error to prevent retry loops
+            this.pendingArchives.delete(taskId);
+        }
+    },
+
+    // Archive a task immediately
+    archiveTaskNow: async function(taskId) {
+        try {
+            const task = window.taskManager?.tasks.find(t => t.id === taskId);
+            if (!task) {
+                window.showNotification('Task not found', 'error');
+                return;
+            }
+
+            if (task.status !== 'done') {
+                window.showNotification('Only completed tasks can be archived', 'error');
+                return;
+            }
+
+            await window.taskManager.updateTask(taskId, {
+                status: 'archived',
+                archivedAt: new Date(),
+                archivedBy: window.auth.currentUser || 'user'
+            });
+
+            // Remove from pending archives if it was scheduled
+            this.pendingArchives.delete(taskId);
+            this.savePendingArchives();
+
+            window.showNotification('Task archived successfully', 'success');
+
+        } catch (error) {
+            console.error('Error archiving task:', error);
+            window.showNotification('Error archiving task', 'error');
+        }
+    },
+
+    // Show notification for upcoming archive
+    showArchiveNotification: function(task) {
+        const notification = document.createElement('div');
+        notification.className = 'notification notification-info archive-notification';
+        notification.innerHTML = `
+            <i data-lucide="clock"></i>
+            <div class="notification-content">
+                <div class="notification-title">Task "${task.title}" will be archived in 2 hours</div>
+                <div class="notification-actions">
+                    <button class="btn btn-sm btn-outline archive-now-btn" data-task-id="${task.id}">
+                        Archive Now
+                    </button>
+                    <button class="btn btn-sm btn-outline cancel-archive-btn" data-task-id="${task.id}">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const container = document.getElementById('notification-container');
+        if (container) {
+            container.appendChild(notification);
+            lucide.createIcons();
+
+            // Setup action buttons
+            notification.querySelector('.cancel-archive-btn').addEventListener('click', () => {
+                this.cancelArchiveSchedule(task.id);
+                notification.remove();
+                window.showNotification('Auto-archive cancelled', 'info');
+            });
+
+            notification.querySelector('.archive-now-btn').addEventListener('click', () => {
+                this.archiveTaskNow(task.id);
+                notification.remove();
+            });
+
+            // Auto-remove after 30 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }
+            }, 30000);
+        }
+    },
+
+    // Save pending archives to localStorage
+    savePendingArchives: function() {
+        try {
+            const archivesArray = Array.from(this.pendingArchives.entries());
+            localStorage.setItem('pendingArchives', JSON.stringify(archivesArray));
+        } catch (error) {
+            console.error('Error saving pending archives:', error);
+        }
+    },
+
+    // Load pending archives from localStorage
+    loadPendingArchives: function() {
+        try {
+            const stored = localStorage.getItem('pendingArchives');
+            if (stored) {
+                const archivesArray = JSON.parse(stored);
+                this.pendingArchives = new Map(archivesArray);
+                
+                // Clean up expired or invalid entries
+                this.cleanupPendingArchives();
+            }
+        } catch (error) {
+            console.error('Error loading pending archives:', error);
+            this.pendingArchives = new Map();
+        }
+    },
+
+    // Clean up invalid or expired pending archives
+    cleanupPendingArchives: function() {
+        const now = Date.now();
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        
+        for (const [taskId, archiveData] of this.pendingArchives) {
+            // Remove if too old or if scheduled time is way in the past
+            if (now - archiveData.scheduledTime > maxAge) {
+                this.pendingArchives.delete(taskId);
+            }
+        }
+        
+        this.savePendingArchives();
+    },
+
+    // Get archive statistics
+    getArchiveStats: function() {
+        const pendingCount = this.pendingArchives.size;
+        const now = Date.now();
+        
+        let readyCount = 0;
+        let upcomingCount = 0;
+        
+        for (const archiveData of this.pendingArchives.values()) {
+            if (now >= archiveData.scheduledTime) {
+                readyCount++;
+            } else {
+                upcomingCount++;
+            }
+        }
+        
+        return {
+            pending: pendingCount,
+            ready: readyCount,
+            upcoming: upcomingCount
+        };
+    },
+
+    // Show archive manager in task details modal
+    updateTaskDetailsModal: function(task) {
+        if (!task) return;
+
+        const archiveBtn = document.getElementById('archive-task-btn');
+        if (!archiveBtn) return;
+
+        if (task.status === 'done') {
+            archiveBtn.classList.remove('hidden');
+            
+            // Check if task is scheduled for auto-archive
+            if (this.pendingArchives.has(task.id)) {
+                const archiveData = this.pendingArchives.get(task.id);
+                const timeRemaining = archiveData.scheduledTime - Date.now();
+                
+                if (timeRemaining > 0) {
+                    const hoursRemaining = Math.ceil(timeRemaining / (60 * 60 * 1000));
+                    archiveBtn.innerHTML = `
+                        <i data-lucide="clock"></i>
+                        Auto-archive in ${hoursRemaining}h
+                    `;
+                    archiveBtn.title = `This task will be automatically archived in ${hoursRemaining} hours`;
+                } else {
+                    archiveBtn.innerHTML = `
+                        <i data-lucide="archive"></i>
+                        Ready to Archive
+                    `;
+                    archiveBtn.title = 'This task is ready for archiving';
+                }
+            } else {
+                archiveBtn.innerHTML = `
+                    <i data-lucide="archive"></i>
+                    Archive Now
+                `;
+                archiveBtn.title = 'Archive this task immediately';
+            }
+        } else {
+            archiveBtn.classList.add('hidden');
+        }
+    },
+
+    // Set custom archive delay
+    setArchiveDelay: function(hours) {
+        this.archiveDelay = hours * 60 * 60 * 1000;
+        console.log(`Archive delay set to ${hours} hours`);
+    },
+
+    // Get tasks ready for archive
+    getTasksReadyForArchive: function() {
+        const now = Date.now();
+        const readyTasks = [];
+        
+        for (const [taskId, archiveData] of this.pendingArchives) {
+            if (now >= archiveData.scheduledTime) {
+                const task = window.taskManager?.tasks.find(t => t.id === taskId);
+                if (task) {
+                    readyTasks.push(task);
+                }
+            }
+        }
+        
+        return readyTasks;
+    }
+};
+
+// Add CSS for archive notifications
+const archiveStyles = `
+    .archive-notification {
+        min-width: 300px;
+        max-width: 400px;
+    }
+
+    .notification-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .notification-title {
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    .notification-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .notification-actions .btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+    }
+
+    .archive-indicator {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-left: 8px;
+    }
+
+    .auto-archive-timer {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 4px;
+    }
+
+    @media (max-width: 480px) {
+        .archive-notification {
+            min-width: auto;
+            max-width: 280px;
+        }
+        
+        .notification-actions {
+            flex-direction: column;
+        }
+        
+        .notification-actions .btn {
+            width: 100%;
+        }
+    }
+`;
+
+// Inject archive styles
+if (!document.getElementById('archive-styles')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'archive-styles';
+    styleSheet.textContent = archiveStyles;
+    document.head.appendChild(styleSheet);
+}

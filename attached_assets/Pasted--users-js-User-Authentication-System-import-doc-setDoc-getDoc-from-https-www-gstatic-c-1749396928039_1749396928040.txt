@@ -1,0 +1,333 @@
+// users.js - User Authentication System
+import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+// Global auth object that other scripts can access
+window.auth = {
+    currentUser: null,
+    isAuthenticated: false,
+    userRole: null,
+    userAvatar: null,
+    // Methods that other scripts can use
+    getCurrentUser: () => window.auth.currentUser,
+    getUserRole: () => window.auth.userRole,
+    isLoggedIn: () => window.auth.isAuthenticated,
+    getUserAvatar: () => window.auth.userAvatar
+};
+
+// Authentication functions
+const auth = {
+    // Simple SHA-256 hash function
+    hashPassword: async (password) => {
+        const msgBuffer = new TextEncoder().encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    // Check if user exists in Firestore
+    checkUserExists: async (username) => {
+        const userRef = doc(window.db, 'users', username);
+        const docSnap = await getDoc(userRef);
+        return docSnap.exists();
+    },
+
+    // Create new user in Firestore
+    createUser: async (username, password, role, avatar = '') => {
+        if (password.length < 6) {
+            throw new Error('Password must be at least 6 characters long');
+        }
+
+        const hashedPassword = await auth.hashPassword(password);
+        await setDoc(doc(window.db, 'users', username), {
+            username,
+            password: hashedPassword,
+            role,
+            avatar,
+            createdAt: new Date().toISOString()
+        });
+    },
+
+    // Verify user credentials
+    verifyUser: async (username, password) => {
+        const userRef = doc(window.db, 'users', username);
+        const docSnap = await getDoc(userRef);
+        
+        if (!docSnap.exists()) {
+            throw new Error('user-not-found');
+        }
+        
+        const userData = docSnap.data();
+        const hashedPassword = await auth.hashPassword(password);
+        
+        if (userData.password !== hashedPassword) {
+            throw new Error('wrong-password');
+        }
+        
+        return userData;
+    },
+
+    // Login function
+    login: async (username, password) => {
+        try {
+            const userData = await auth.verifyUser(username, password);
+            
+            // Update global auth object
+            window.auth.currentUser = username;
+            window.auth.isAuthenticated = true;
+            window.auth.userRole = userData.role;
+            window.auth.userAvatar = userData.avatar || '';
+            
+            // Store session in localStorage
+            localStorage.setItem('mne_auth', JSON.stringify({
+                user: username,
+                role: userData.role,
+                avatar: userData.avatar || '',
+                timestamp: new Date().getTime()
+            }));
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Login error:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    // Logout function
+    logout: () => {
+        window.auth.currentUser = null;
+        window.auth.isAuthenticated = false;
+        window.auth.userRole = null;
+        window.auth.userAvatar = null;
+        localStorage.removeItem('mne_auth');
+    },
+
+    // Check session on page load
+    checkSession: async () => {
+        const session = localStorage.getItem('mne_auth');
+        if (session) {
+            try {
+                const { user, role, avatar } = JSON.parse(session);
+                window.auth.currentUser = user;
+                window.auth.isAuthenticated = true;
+                window.auth.userRole = role;
+                window.auth.userAvatar = avatar || '';
+                return true;
+            } catch (e) {
+                console.error('Session parse error:', e);
+                auth.logout();
+                return false;
+            }
+        }
+        return false;
+    },
+
+    // Update user avatar
+    updateUserAvatar: async (username, avatarUrl) => {
+        try {
+            const userRef = doc(window.db, 'users', username);
+            await setDoc(userRef, { avatar: avatarUrl }, { merge: true });
+            
+            // Update local session
+            window.auth.userAvatar = avatarUrl;
+            const session = localStorage.getItem('mne_auth');
+            if (session) {
+                const sessionData = JSON.parse(session);
+                sessionData.avatar = avatarUrl;
+                localStorage.setItem('mne_auth', JSON.stringify(sessionData));
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error updating avatar:', error);
+            return false;
+        }
+    }
+};
+
+// DOM Event Listeners and UI Functions
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize UI elements
+    const loginModal = document.getElementById('login-modal');
+    const createUserModal = document.getElementById('create-user-modal');
+    const appContainer = document.getElementById('app-container');
+    const loginForm = document.getElementById('login-form');
+    const createUserForm = document.getElementById('create-user-form');
+    const statusText = document.getElementById('status-text');
+    const statusIndicator = document.getElementById('status-indicator');
+
+    // Show loading status
+    statusText.textContent = "Connecting to Firebase...";
+    
+    try {
+        // Check for existing session
+        const hasSession = await auth.checkSession();
+        
+        if (hasSession) {
+            // Hide login modal, show app
+            loginModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            // Update UI with user info
+            document.getElementById('current-user-name').textContent = window.auth.currentUser;
+            document.getElementById('current-user-role').textContent = window.auth.userRole;
+            if (window.auth.userAvatar) {
+                document.getElementById('current-user-avatar').src = window.auth.userAvatar;
+            }
+            statusText.textContent = "Connected";
+            statusIndicator.classList.add('connected');
+        } else {
+            loginModal.classList.remove('hidden');
+            statusText.textContent = "Ready to login";
+            statusIndicator.classList.add('connected');
+        }
+    } catch (error) {
+        console.error('Initialization error:', error);
+        statusText.textContent = "Connection error";
+        statusIndicator.classList.add('error');
+    }
+
+    // Login form submission
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-name').value.trim();
+        const password = document.getElementById('login-password').value;
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        
+        // Save original button text
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Authenticating...';
+        lucide.createIcons();
+        
+        const result = await auth.login(username, password);
+        
+        if (result.success) {
+            loginModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            // Update UI with user info
+            document.getElementById('current-user-name').textContent = username;
+            document.getElementById('current-user-role').textContent = window.auth.userRole;
+            if (window.auth.userAvatar) {
+                document.getElementById('current-user-avatar').src = window.auth.userAvatar;
+            }
+            
+            // Initialize task manager after successful login
+            if (window.taskManager && typeof window.taskManager.init === 'function') {
+                await window.taskManager.init();
+            }
+        } else {
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+            
+            // Show appropriate error message
+            let errorMessage = "Login failed";
+            if (result.error === 'user-not-found') {
+                errorMessage = "User not found";
+            } else if (result.error === 'wrong-password') {
+                errorMessage = "Incorrect password";
+            }
+            
+            // Show error notification
+            showNotification(errorMessage, 'error');
+        }
+    });
+    
+    // Create user form submission
+    createUserForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('user-name').value.trim();
+        const role = document.getElementById('user-role').value;
+        const avatar = document.getElementById('user-avatar').value.trim();
+        const password = document.getElementById('user-password').value;
+        const submitBtn = createUserForm.querySelector('button[type="submit"]');
+        
+        // Save original button text
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Creating User...';
+        lucide.createIcons();
+        
+        try {
+            if (password.length < 6) {
+                throw new Error('Password must be at least 6 characters long');
+            }
+            
+            await auth.createUser(username, password, role, avatar);
+            showNotification('User created successfully!', 'success');
+            
+            // Reset form and switch back to login
+            createUserForm.reset();
+            createUserModal.classList.add('hidden');
+            loginModal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error creating user:', error);
+            showNotification(error.message || 'Error creating user', 'error');
+        } finally {
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+        }
+    });
+    
+    // Toggle between login and create user modals
+    document.getElementById('create-user-btn').addEventListener('click', () => {
+        loginModal.classList.add('hidden');
+        createUserModal.classList.remove('hidden');
+    });
+    
+    document.getElementById('close-create-user').addEventListener('click', () => {
+        createUserModal.classList.add('hidden');
+        loginModal.classList.remove('hidden');
+    });
+    
+    document.getElementById('cancel-create-user').addEventListener('click', () => {
+        createUserModal.classList.add('hidden');
+        loginModal.classList.remove('hidden');
+    });
+    
+    // Logout button
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        auth.logout();
+        appContainer.classList.add('hidden');
+        loginModal.classList.remove('hidden');
+        loginForm.reset();
+        showNotification('Logged out successfully', 'success');
+    });
+});
+
+// Notification function
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <i data-lucide="${type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle' : 'info'}"></i>
+        <span>${message}</span>
+    `;
+    
+    const container = document.getElementById('notification-container');
+    if (container) {
+        container.appendChild(notification);
+        lucide.createIcons();
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }, 5000);
+    }
+}
+
+// Initialize auth when script loads
+auth.checkSession().then(hasSession => {
+    if (hasSession) {
+        console.log('User session restored:', window.auth.currentUser);
+    }
+});
+
+// Export for use in other modules
+window.authModule = auth;
+window.showNotification = showNotification;

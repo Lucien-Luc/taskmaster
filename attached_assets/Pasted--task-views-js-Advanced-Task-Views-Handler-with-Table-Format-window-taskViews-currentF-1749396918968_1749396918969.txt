@@ -1,0 +1,699 @@
+// task-views.js - Advanced Task Views Handler with Table Format
+window.taskViews = {
+    currentFilter: {
+        user: '',
+        priority: '',
+        category: '',
+        status: '',
+        dateStart: '',
+        dateEnd: ''
+    },
+
+    // Initialize view handlers
+    init: function() {
+        console.log('Initializing advanced task views...');
+        this.setupFilterListeners();
+        this.setupViewSpecificEvents();
+    },
+
+    // Setup filter event listeners
+    setupFilterListeners: function() {
+        const filterUser = document.getElementById('filter-user');
+        const filterPriority = document.getElementById('filter-priority');
+        const filterCategory = document.getElementById('filter-category');
+        const filterStatus = document.getElementById('filter-status');
+        const filterDateStart = document.getElementById('filter-date-start');
+        const filterDateEnd = document.getElementById('filter-date-end');
+
+        if (filterUser) {
+            filterUser.addEventListener('change', (e) => {
+                this.currentFilter.user = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+
+        if (filterPriority) {
+            filterPriority.addEventListener('change', (e) => {
+                this.currentFilter.priority = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+
+        if (filterCategory) {
+            filterCategory.addEventListener('change', (e) => {
+                this.currentFilter.category = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+
+        if (filterStatus) {
+            filterStatus.addEventListener('change', (e) => {
+                this.currentFilter.status = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+
+        if (filterDateStart) {
+            filterDateStart.addEventListener('change', (e) => {
+                this.currentFilter.dateStart = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+
+        if (filterDateEnd) {
+            filterDateEnd.addEventListener('change', (e) => {
+                this.currentFilter.dateEnd = e.target.value;
+                this.updateCurrentView();
+            });
+        }
+    },
+
+    // Setup view-specific event handlers
+    setupViewSpecificEvents: function() {
+        // Week navigation for weekly view
+        const prevWeek = document.getElementById('prev-week');
+        const nextWeek = document.getElementById('next-week');
+        
+        if (prevWeek) {
+            prevWeek.addEventListener('click', () => {
+                this.navigateWeek(-1);
+            });
+        }
+        
+        if (nextWeek) {
+            nextWeek.addEventListener('click', () => {
+                this.navigateWeek(1);
+            });
+        }
+
+        // Month navigation for monthly view
+        const prevMonthView = document.getElementById('prev-month-view');
+        const nextMonthView = document.getElementById('next-month-view');
+        
+        if (prevMonthView) {
+            prevMonthView.addEventListener('click', () => {
+                this.navigateMonth(-1);
+            });
+        }
+        
+        if (nextMonthView) {
+            nextMonthView.addEventListener('click', () => {
+                this.navigateMonth(1);
+            });
+        }
+
+        // Quarter navigation for quarterly view
+        const prevQuarter = document.getElementById('prev-quarter');
+        const nextQuarter = document.getElementById('next-quarter');
+        
+        if (prevQuarter) {
+            prevQuarter.addEventListener('click', () => {
+                this.navigateQuarter(-1);
+            });
+        }
+        
+        if (nextQuarter) {
+            nextQuarter.addEventListener('click', () => {
+                this.navigateQuarter(1);
+            });
+        }
+
+        // Year navigation for annual view
+        const prevYear = document.getElementById('prev-year');
+        const nextYear = document.getElementById('next-year');
+        
+        if (prevYear) {
+            prevYear.addEventListener('click', () => {
+                this.navigateYear(-1);
+            });
+        }
+        
+        if (nextYear) {
+            nextYear.addEventListener('click', () => {
+                this.navigateYear(1);
+            });
+        }
+    },
+
+    // Navigation methods
+    navigateWeek: function(direction) {
+        if (window.taskManager) {
+            if (!window.taskManager.currentWeekDate) {
+                window.taskManager.currentWeekDate = new Date();
+            }
+            window.taskManager.currentWeekDate.setDate(window.taskManager.currentWeekDate.getDate() + (direction * 7));
+            this.renderWeeklyView();
+        }
+    },
+
+    navigateMonth: function(direction) {
+        if (window.taskManager) {
+            if (!window.taskManager.currentDate) {
+                window.taskManager.currentDate = new Date();
+            }
+            window.taskManager.currentDate.setMonth(window.taskManager.currentDate.getMonth() + direction);
+            this.renderMonthlyView();
+        }
+    },
+
+    navigateQuarter: function(direction) {
+        if (window.taskManager) {
+            window.taskManager.currentQuarter += direction;
+            if (window.taskManager.currentQuarter < 1) {
+                window.taskManager.currentQuarter = 4;
+                window.taskManager.currentYear--;
+            } else if (window.taskManager.currentQuarter > 4) {
+                window.taskManager.currentQuarter = 1;
+                window.taskManager.currentYear++;
+            }
+            this.renderQuarterlyView();
+        }
+    },
+
+    navigateYear: function(direction) {
+        if (window.taskManager) {
+            window.taskManager.currentYear += direction;
+            this.renderAnnualView();
+        }
+    },
+
+    // Filter tasks based on current filters
+    getFilteredTasks: function(tasks = null) {
+        const tasksToFilter = tasks || (window.taskManager ? window.taskManager.tasks : []);
+        
+        return tasksToFilter.filter(task => {
+            // User filter
+            if (this.currentFilter.user && task.assignedUsers && task.assignedUsers.length > 0) {
+                if (!task.assignedUsers.includes(this.currentFilter.user)) {
+                    return false;
+                }
+            }
+            
+            // Priority filter
+            if (this.currentFilter.priority && task.priority !== this.currentFilter.priority) {
+                return false;
+            }
+            
+            // Category filter
+            if (this.currentFilter.category && task.category !== this.currentFilter.category) {
+                return false;
+            }
+
+            // Status filter
+            if (this.currentFilter.status && task.status !== this.currentFilter.status) {
+                return false;
+            }
+            
+            // Date range filter
+            if (this.currentFilter.dateStart || this.currentFilter.dateEnd) {
+                const taskDate = new Date(task.dueDate);
+                
+                if (this.currentFilter.dateStart) {
+                    const startDate = new Date(this.currentFilter.dateStart);
+                    if (taskDate < startDate) {
+                        return false;
+                    }
+                }
+                
+                if (this.currentFilter.dateEnd) {
+                    const endDate = new Date(this.currentFilter.dateEnd);
+                    if (taskDate > endDate) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        });
+    },
+
+    // Update current view based on active view
+    updateCurrentView: function() {
+        if (!window.taskManager) return;
+        
+        const currentView = window.taskManager.currentView;
+        
+        switch (currentView) {
+            case 'weekly':
+                this.renderWeeklyView();
+                break;
+            case 'monthly':
+                this.renderMonthlyView();
+                break;
+            case 'quarterly':
+                this.renderQuarterlyView();
+                break;
+            case 'annually':
+                this.renderAnnualView();
+                break;
+            case 'kanban':
+                if (window.taskManager.renderKanbanBoard) {
+                    window.taskManager.renderKanbanBoard();
+                }
+                break;
+        }
+    },
+
+    // WEEKLY VIEW - Table Format
+    renderWeeklyView: function() {
+        const weeklyContainer = document.getElementById('weekly-content');
+        if (!weeklyContainer || !window.taskManager) return;
+
+        const currentDate = window.taskManager.currentWeekDate || new Date();
+        const weekStart = this.getWeekStart(currentDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        // Update week display
+        const weekDisplay = document.getElementById('current-week');
+        if (weekDisplay) {
+            weekDisplay.textContent = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+        }
+
+        // Get tasks for the week
+        const weekTasks = this.getFilteredTasks().filter(task => {
+            const taskDate = new Date(task.dueDate);
+            return taskDate >= weekStart && taskDate <= weekEnd;
+        });
+
+        // Render week table
+        weeklyContainer.innerHTML = this.renderTaskTable(weekTasks, 'Weekly Report');
+        
+        // Add summary
+        this.renderWeeklySummary(weekTasks);
+    },
+
+    // MONTHLY VIEW - Table Format
+    renderMonthlyView: function() {
+        const monthlyContainer = document.getElementById('monthly-content');
+        if (!monthlyContainer || !window.taskManager) return;
+
+        const currentDate = window.taskManager.currentDate || new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        // Update month display
+        const monthDisplay = document.getElementById('current-month-view');
+        if (monthDisplay) {
+            monthDisplay.textContent = new Date(year, month, 1).toLocaleDateString('en-US', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        }
+
+        // Get tasks for the month
+        const monthTasks = this.getFilteredTasks().filter(task => {
+            const taskDate = new Date(task.dueDate);
+            return taskDate.getMonth() === month && taskDate.getFullYear() === year;
+        });
+
+        // Render monthly table
+        monthlyContainer.innerHTML = this.renderTaskTable(monthTasks, 'Monthly Report');
+        
+        // Add summary
+        this.renderMonthlySummary(monthTasks);
+    },
+
+    // QUARTERLY VIEW - Table Format
+    renderQuarterlyView: function() {
+        const quarterlyContainer = document.getElementById('quarterly-content');
+        if (!quarterlyContainer || !window.taskManager) return;
+
+        const quarter = window.taskManager.currentQuarter;
+        const year = window.taskManager.currentYear;
+
+        // Update quarter display
+        const quarterDisplay = document.getElementById('current-quarter');
+        if (quarterDisplay) {
+            quarterDisplay.textContent = `Q${quarter} ${year}`;
+        }
+
+        // Get quarter date range
+        const quarterStart = new Date(year, (quarter - 1) * 3, 1);
+        const quarterEnd = new Date(year, quarter * 3, 0);
+
+        // Get tasks for the quarter
+        const quarterTasks = this.getFilteredTasks().filter(task => {
+            const taskDate = new Date(task.dueDate);
+            return taskDate >= quarterStart && taskDate <= quarterEnd;
+        });
+
+        // Render quarterly table
+        quarterlyContainer.innerHTML = this.renderTaskTable(quarterTasks, `Q${quarter} ${year} Report`);
+        
+        // Add summary
+        this.renderQuarterlySummary(quarterTasks);
+    },
+
+    // ANNUAL VIEW - Table Format
+    renderAnnualView: function() {
+        const annualContainer = document.getElementById('annual-content');
+        if (!annualContainer || !window.taskManager) return;
+
+        const year = window.taskManager.currentYear;
+
+        // Update year display
+        const yearDisplay = document.getElementById('current-year');
+        if (yearDisplay) {
+            yearDisplay.textContent = year.toString();
+        }
+
+        // Get tasks for the year
+        const yearTasks = this.getFilteredTasks().filter(task => {
+            const taskDate = new Date(task.dueDate);
+            return taskDate.getFullYear() === year;
+        });
+
+        // Render annual table
+        annualContainer.innerHTML = this.renderTaskTable(yearTasks, `${year} Annual Report`);
+        
+        // Add summary
+        this.renderAnnualSummary(yearTasks);
+    },
+
+    // Render comprehensive task table
+    renderTaskTable: function(tasks, title) {
+        if (tasks.length === 0) {
+            return `
+                <div class="empty-state">
+                    <h3>${title}</h3>
+                    <p>No tasks found for the selected period.</p>
+                </div>
+            `;
+        }
+
+        return `
+            <h3>${title}</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Task Title</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Category</th>
+                        <th>Assigned Users</th>
+                        <th>Progress</th>
+                        <th>Start Date</th>
+                        <th>Due Date</th>
+                        <th>Days Remaining</th>
+                        <th>Estimated Hours</th>
+                        <th>Tags</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tasks.map(task => this.renderTaskRow(task)).join('')}
+                </tbody>
+            </table>
+        `;
+    },
+
+    // Render individual task row
+    renderTaskRow: function(task) {
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        const daysRemaining = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        const isOverdue = daysRemaining < 0;
+        
+        return `
+            <tr class="task-row ${isOverdue ? 'overdue' : ''}" onclick="window.taskManager.showTaskDetails(window.taskManager.tasks.find(t => t.id === '${task.id}'))">
+                <td>
+                    <div class="task-title-cell">
+                        <strong>${task.title}</strong>
+                        ${task.description ? `<div class="task-description-preview">${task.description.substring(0, 50)}${task.description.length > 50 ? '...' : ''}</div>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="task-priority ${task.priority}">${task.priority.toUpperCase()}</span>
+                </td>
+                <td>
+                    <span class="status-badge ${task.status}">${task.status.replace('-', ' ').toUpperCase()}</span>
+                </td>
+                <td>${task.category || 'N/A'}</td>
+                <td>
+                    <div class="assignees-cell">
+                        ${task.assignedUsers && task.assignedUsers.length > 0 
+                            ? task.assignedUsers.map(user => `<span class="assignee-badge">${user}</span>`).join('')
+                            : 'Unassigned'
+                        }
+                    </div>
+                </td>
+                <td>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${task.progress || 0}%"></div>
+                        </div>
+                        <span class="progress-text">${task.progress || 0}%</span>
+                    </div>
+                </td>
+                <td>${task.startDate ? new Date(task.startDate).toLocaleDateString() : 'Not set'}</td>
+                <td class="${isOverdue ? 'overdue-date' : ''}">${dueDate.toLocaleDateString()}</td>
+                <td class="${isOverdue ? 'overdue-days' : daysRemaining <= 3 ? 'warning-days' : ''}">
+                    ${isOverdue ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days`}
+                </td>
+                <td>${task.estimatedHours || 'N/A'}</td>
+                <td>
+                    <div class="tags-cell">
+                        ${task.tags && task.tags.length > 0 
+                            ? task.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('')
+                            : 'No tags'
+                        }
+                    </div>
+                </td>
+            </tr>
+        `;
+    },
+
+    // Helper function to get week start
+    getWeekStart: function(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        return new Date(d.setDate(diff));
+    },
+
+    // Generate task summary
+    generateTaskSummary: function(tasks) {
+        const total = tasks.length;
+        const completed = tasks.filter(t => t.status === 'completed').length;
+        const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+        const todo = tasks.filter(t => t.status === 'todo').length;
+        const blocked = tasks.filter(t => t.status === 'blocked').length;
+        const paused = tasks.filter(t => t.status === 'paused').length;
+        
+        const overdue = tasks.filter(t => {
+            return t.status !== 'completed' && new Date(t.dueDate) < new Date();
+        }).length;
+        
+        const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'urgent').length;
+        
+        const avgProgress = total > 0 
+            ? Math.round(tasks.reduce((sum, task) => sum + (task.progress || 0), 0) / total)
+            : 0;
+
+        const totalEstimatedHours = tasks.reduce((sum, task) => {
+            return sum + (task.estimatedHours || 0);
+        }, 0);
+
+        return {
+            total,
+            completed,
+            inProgress,
+            todo,
+            blocked,
+            paused,
+            overdue,
+            highPriority,
+            avgProgress,
+            totalEstimatedHours,
+            completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
+        };
+    },
+
+    // Render summary cards
+    renderSummaryCards: function(summary, period) {
+        return `
+            <h3>${period} Summary</h3>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h4>Total Tasks</h4>
+                    <div class="value">${summary.total}</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Completed</h4>
+                    <div class="value">${summary.completed}</div>
+                </div>
+                <div class="summary-card">
+                    <h4>In Progress</h4>
+                    <div class="value">${summary.inProgress}</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Completion Rate</h4>
+                    <div class="value">${summary.completionRate}%</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Overdue</h4>
+                    <div class="value ${summary.overdue > 0 ? 'danger' : ''}">${summary.overdue}</div>
+                </div>
+                <div class="summary-card">
+                    <h4>High Priority</h4>
+                    <div class="value">${summary.highPriority}</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Average Progress</h4>
+                    <div class="value">${summary.avgProgress}%</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Estimated Hours</h4>
+                    <div class="value">${summary.totalEstimatedHours}</div>
+                </div>
+            </div>
+        `;
+    },
+
+    // Render weekly summary
+    renderWeeklySummary: function(tasks) {
+        const summaryContainer = document.getElementById('weekly-summary');
+        if (!summaryContainer) return;
+
+        const summary = this.generateTaskSummary(tasks);
+        summaryContainer.innerHTML = this.renderSummaryCards(summary, 'Weekly');
+    },
+
+    // Render monthly summary
+    renderMonthlySummary: function(tasks) {
+        const summaryContainer = document.getElementById('monthly-summary');
+        if (!summaryContainer) return;
+
+        const summary = this.generateTaskSummary(tasks);
+        summaryContainer.innerHTML = this.renderSummaryCards(summary, 'Monthly');
+    },
+
+    // Render quarterly summary
+    renderQuarterlySummary: function(tasks) {
+        const summaryContainer = document.getElementById('quarterly-summary');
+        if (!summaryContainer) return;
+
+        const summary = this.generateTaskSummary(tasks);
+        summaryContainer.innerHTML = this.renderSummaryCards(summary, 'Quarterly');
+    },
+
+    // Render annual summary
+    renderAnnualSummary: function(tasks) {
+        const summaryContainer = document.getElementById('annual-summary');
+        if (!summaryContainer) return;
+
+        const summary = this.generateTaskSummary(tasks);
+        summaryContainer.innerHTML = this.renderSummaryCards(summary, 'Annual');
+    }
+};
+
+// Add additional CSS styles for table views
+const additionalStyles = `
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .task-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .task-row:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .task-row.overdue {
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .task-title-cell strong {
+        color: #ffffff;
+        font-size: 14px;
+    }
+
+    .task-description-preview {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 2px;
+    }
+
+    .assignees-cell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .tags-cell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .tag-badge {
+        background: rgba(59, 130, 246, 0.7);
+        color: #ffffff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+    .progress-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .progress-text {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        min-width: 30px;
+    }
+
+    .overdue-date {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .overdue-days {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .warning-days {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+
+    .summary-card .value.danger {
+        color: #ef4444;
+    }
+
+    @media (max-width: 768px) {
+        .data-table {
+            font-size: 11px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 8px 4px;
+        }
+        
+        .assignees-cell,
+        .tags-cell {
+            flex-direction: column;
+        }
+        
+        .progress-container {
+            flex-direction: column;
+            gap: 2px;
+        }
+    }
+`;
+
+// Inject additional styles
+const styleSheet = document.createElement('style');
+styleSheet.textContent = additionalStyles;
+document.head.appendChild(styleSheet);

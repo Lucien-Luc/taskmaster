@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M&E - Task Management & Monitoring</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Firebase Connection Status -->
+    <div class="firebase-status">
+        <div class="status-indicator" id="status-indicator"></div>
+        <span id="status-text">Connecting...</span>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notification-container"></div>
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal glass-strong">
+            <div class="modal-header">
+                <h2>Task Management System</h2>
+            </div>
+            <div class="modal-body">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-name">Username</label>
+                        <input type="text" id="login-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" id="create-user-btn">Create New User</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="log-in"></i>
+                            Login
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal-overlay hidden" id="create-user-modal">
+        <div class="modal glass-strong">
+            <div class="modal-header">
+                <h2>Create New User</h2>
+                <button type="button" class="modal-close" id="close-create-user">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="create-user-form">
+                    <div class="form-group">
+                        <label for="user-name">Username</label>
+                        <input type="text" id="user-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-role">Role</label>
+                        <select id="user-role" required>
+                            <option value="member">Team Member</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-avatar">Avatar URL (optional)</label>
+                        <input type="url" id="user-avatar" placeholder="https://example.com/avatar.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-password">Password</label>
+                        <input type="password" id="user-password" required>
+                        <small>Password must be at least 6 characters long</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" id="cancel-create-user">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="user-plus"></i>
+                            Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container hidden" id="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass" id="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <div class="user-avatar-container">
+                        <img src="https://ui-avatars.com/api/?name=User&background=3b82f6&color=ffffff&size=200&bold=true" 
+                             alt="User Avatar" class="user-avatar" id="current-user-avatar">
+                        <button class="avatar-upload-btn" id="upload-avatar-btn" title="Change Profile Picture">
+                            <i data-lucide="camera"></i>
+                        </button>
+                        <input type="file" id="avatar-file-input" accept="image/*" style="display: none;">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="current-user-name">User</div>
+                        <div class="user-role" id="current-user-role">Member</div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="version-badge">v1</div>
+                    <button class="btn btn-sm btn-outline" id="logout-btn">
+                        <i data-lucide="log-out"></i>
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- User Block Status Warning -->
+            <div class="user-block-warning hidden" id="user-block-warning">
+                <div class="block-warning-content">
+                    <i data-lucide="alert-triangle"></i>
+                    <div class="block-warning-text">
+                        <strong>Account Blocked</strong>
+                        <p id="block-warning-message">You have overdue tasks that require attention.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Section -->
+            <div class="search-section">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" class="search-input" id="task-search" placeholder="Search tasks...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Actions -->
+            <div class="task-actions">
+                <button class="btn btn-primary" id="create-task-btn">
+                    <i data-lucide="plus"></i>
+                    Create Task
+                </button>
+            </div>
+
+            <!-- Task Statistics -->
+            <div class="task-stats">
+                <h3>Task Overview</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-tasks">0</div>
+                        <div class="stat-label">Total Tasks</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="completed-tasks">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="pending-tasks">0</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="overdue-tasks">0</div>
+                        <div class="stat-label">Overdue</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-section">
+                <h3>Filters</h3>
+                <div class="filter-group">
+                    <label for="filter-user">Assigned To</label>
+                    <select id="filter-user">
+                        <option value="">All Members</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-priority">Priority</label>
+                    <select id="filter-priority">
+                        <option value="">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-category">Category</label>
+                    <select id="filter-category">
+                        <option value="">All Categories</option>
+                        <option value="development">Development</option>
+                        <option value="design">Design</option>
+                        <option value="testing">Testing</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="meeting">Field work</option>
+                        <option value="documentation">Documentation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-status">Status</label>
+                    <select id="filter-status">
+                        <option value="">All Statuses</option>
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="paused">Paused</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-date-start">Start Date</label>
+                    <input type="date" id="filter-date-start">
+                </div>
+                <div class="filter-group">
+                    <label for="filter-date-end">End Date</label>
+                    <input type="date" id="filter-date-end">
+                </div>
+            </div>
+
+            <!-- Export Section -->
+            <div class="export-section">
+                <h3>Export Data</h3>
+                <button class="btn btn-outline" id="export-excel-btn">
+                    <i data-lucide="download"></i>
+                    Export to Excel
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar Toggle -->
+            <button class="sidebar-toggle" id="sidebar-toggle">
+                <i data-lucide="menu"></i>
+            </button>
+
+            <!-- View Navigation -->
+            <div class="view-navigation">
+                <div class="view-tabs">
+                    <button class="view-tab active" data-view="kanban">
+                        <i data-lucide="columns"></i>
+                        Kanban
+                    </button>
+                    <button class="view-tab" data-view="calendar">
+                        <i data-lucide="calendar"></i>
+                        Calendar
+                    </button>
+                    <button class="view-tab" data-view="weekly">
+                        <i data-lucide="calendar-days"></i>
+                        Weekly
+                    </button>
+                    <button class="view-tab" data-view="monthly">
+                        <i data-lucide="calendar-range"></i>
+                        Monthly
+                    </button>
+                    <button class="view-tab" data-view="quarterly">
+                        <i data-lucide="calendar-clock"></i>
+                        Quarterly
+                    </button>
+                    <button class="view-tab" data-view="annually">
+                        <i data-lucide="calendar-check"></i>
+                        Annual
+                    </button>
+                </div>
+            </div>
+
+            <!-- View Content Container -->
+            <div class="view-content">
+                <!-- Kanban Board -->
+                <div class="view-panel active" id="kanban-view">
+                    <div class="kanban-board" id="kanban-board">
+                        <div class="kanban-column" data-status="todo">
+                            <div class="column-header">
+                                <h3>To Do</h3>
+                                <span class="task-count" id="todo-count">0</span>
+                            </div>
+                            <div class="task-list" id="todo-tasks" data-status="todo"></div>
+                        </div>
+                        <div class="kanban-column" data-status="in-progress">
+                            <div class="column-header">
+                                <h3>In Progress</h3>
+                                <span class="task-count" id="in-progress-count">0</span>
+                            </div>
+                            <div class="task-list" id="in-progress-tasks" data-status="in-progress"></div>
+                        </div>
+                        <div class="kanban-column" data-status="blocked">
+                            <div class="column-header">
+                                <h3>Blocked</h3>
+                                <span class="task-count" id="blocked-count">0</span>
+                            </div>
+                            <div class="task-list" id="blocked-tasks" data-status="blocked"></div>
+                        </div>
+                        <div class="kanban-column" data-status="paused">
+                            <div class="column-header">
+                                <h3>Paused</h3>
+                                <span class="task-count" id="paused-count">0</span>
+                            </div>
+                            <div class="task-list" id="paused-tasks" data-status="paused"></div>
+                        </div>
+                        <div class="kanban-column" data-status="completed">
+                            <div class="column-header">
+                                <h3>Completed</h3>
+                                <span class="task-count" id="completed-count">0</span>
+                            </div>
+                            <div class="task-list" id="completed-tasks" data-status="completed"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar View -->
+                <div class="view-panel" id="calendar-view">
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <button class="nav-btn" id="prev-month">
+                                <i data-lucide="chevron-left"></i>
+                            </button>
+                            <h2 id="current-month-year">Month Year</h2>
+                            <button class="nav-btn" id="next-month">
+                                <i data-lucide="chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="calendar">
+                            <div class="calendar-weekdays">
+                                <div class="weekday">Sun</div>
+                                <div class="weekday">Mon</div>
+                                <div class="weekday">Tue</div>
+                                <div class="weekday">Wed</div>
+                                <div class="weekday">Thu</div>
+                                <div class="weekday">Fri</div>
+                                <div class="weekday">Sat</div>
+                            </div>
+                            <div class="calendar-days" id="calendar-days"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly View -->
+                <div class="view-panel" id="weekly-view">
+                    <div class="view-header">
+                        <button class="nav-btn" id="prev-week">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <h2 id="current-week">Week</h2>
+                        <button class="nav-btn" id="next-week">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="table-view-content" id="weekly-content"></div>
+                </div>
+
+                <!-- Monthly View -->
+                <div class="view-panel" id="monthly-view">
+                    <div class="view-header">
+                        <button class="nav-btn" id="prev-month-view">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <h2 id="current-month-view">Month</h2>
+                        <button class="nav-btn" id="next-month-view">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="table-view-content" id="monthly-content"></div>
+                </div>
+
+                <!-- Quarterly View -->
+                <div class="view-panel" id="quarterly-view">
+                    <div class="view-header">
+                        <button class="nav-btn" id="prev-quarter">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <h2 id="current-quarter">Quarter</h2>
+                        <button class="nav-btn" id="next-quarter">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="table-view-content" id="quarterly-content"></div>
+                </div>
+
+                <!-- Annual View -->
+                <div class="view-panel" id="annually-view">
+                    <div class="view-header">
+                        <button class="nav-btn" id="prev-year">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <h2 id="current-year">Year</h2>
+                        <button class="nav-btn" id="next-year">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="table-view-content" id="annual-content"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Task Modal -->
+    <div class="modal-overlay hidden" id="task-modal">
+        <div class="modal large-modal glass-strong">
+            <div class="modal-header">
+                <h2 id="modal-title">Create New Task</h2>
+                <button type="button" class="modal-close" id="close-task-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="task-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-title">Task Title</label>
+                            <input type="text" id="task-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-priority">Priority</label>
+                            <select id="task-priority" required>
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-description">Description</label>
+                        <textarea id="task-description" rows="4" placeholder="Enter task description..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-category">Category</label>
+                            <select id="task-category" required>
+                                <option value="development">Development</option>
+                                <option value="design">Design</option>
+                                <option value="testing">Testing</option>
+                                <option value="research">Field work</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="documentation">Documentation</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-status">Status</label>
+                            <select id="task-status" required>
+                                <option value="todo">To Do</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="paused">Paused</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-start-date">Start Date</label>
+                            <input type="date" id="task-start-date">
+                        </div>
+                        <div class="form-group">
+                            <label for="task-due-date">Due Date</label>
+                            <input type="date" id="task-due-date" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned Users</label>
+                        <div class="assigned-users-container" id="task-assigned-users"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" id="cancel-task">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="save"></i>
+                            Save Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div class="modal-overlay hidden" id="task-details-modal">
+        <div class="modal large-modal glass-strong">
+            <div class="modal-header">
+                <h2 id="details-modal-title">Task Details</h2>
+                <button type="button" class="modal-close" id="close-task-details">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="task-details-content" id="task-details-content">
+                    <!-- Task details will be populated here -->
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" id="close-details-btn">Close</button>
+                    <button type="button" class="btn btn-secondary" id="edit-task-btn">
+                        <i data-lucide="edit"></i>
+                        Edit Task
+                    </button>
+                    <button type="button" class="btn btn-danger" id="delete-task-btn">
+                        <i data-lucide="trash-2"></i>
+                        Delete Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/users.js"></script>
+    <script type="module" src="js/overdue-manager.js"></script>
+    <script type="module" src="js/kanban.js"></script>
+    <script type="module" src="js/export-manager.js"></script>
+    <script type="module" src="js/task-views.js"></script>
+    <script type="module" src="js/profile.js"></script>
+    <script type="module" src="js/tasks.js"></script>
+</body>
+</html>

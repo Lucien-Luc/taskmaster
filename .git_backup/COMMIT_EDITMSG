@@ -1,0 +1,7 @@
+Prevent task cards from appearing in the sidebar after switching views
+
+Implements CSS containment and visibility rules to prevent misplaced task cards in the sidebar.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: ab9d3267-08dc-4994-9f4d-962c37075fad
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/f4910d08-abce-45fc-8b53-7b0554a13f72/7792bcd7-30a5-40ce-a4ef-a7699d892581.jpg

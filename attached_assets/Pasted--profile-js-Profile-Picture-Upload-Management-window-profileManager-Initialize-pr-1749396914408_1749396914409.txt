@@ -1,0 +1,544 @@
+// profile.js - Profile Picture Upload Management
+
+window.profileManager = {
+    // Initialize profile functionality
+    init: function() {
+        console.log('Initializing profile manager...');
+        this.setupProfileUpload();
+        this.setupEventListeners();
+    },
+
+    // Setup profile picture upload functionality
+    setupProfileUpload: function() {
+        const uploadBtn = document.getElementById('upload-avatar-btn');
+        const fileInput = document.getElementById('avatar-file-input');
+        const currentAvatar = document.getElementById('current-user-avatar');
+
+        if (uploadBtn && fileInput) {
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                this.handleFileSelect(e);
+            });
+        }
+
+        // Setup drag and drop for avatar
+        if (currentAvatar) {
+            currentAvatar.addEventListener('dragover', this.handleDragOver.bind(this));
+            currentAvatar.addEventListener('drop', this.handleDrop.bind(this));
+            currentAvatar.addEventListener('dragleave', this.handleDragLeave.bind(this));
+        }
+    },
+
+    // Setup additional event listeners
+    setupEventListeners: function() {
+        // Listen for auth changes to update avatar
+        if (window.auth) {
+            const originalLogin = window.auth.login;
+            window.auth.login = async (...args) => {
+                const result = await originalLogin.apply(window.auth, args);
+                if (result.success) {
+                    this.updateAvatarDisplay();
+                }
+                return result;
+            };
+        }
+    },
+
+    // Handle file selection
+    handleFileSelect: function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.processImageFile(file);
+        }
+    },
+
+    // Handle drag over
+    handleDragOver: function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.style.opacity = '0.7';
+        event.currentTarget.style.transform = 'scale(1.05)';
+    },
+
+    // Handle drag leave
+    handleDragLeave: function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.style.opacity = '1';
+        event.currentTarget.style.transform = 'scale(1)';
+    },
+
+    // Handle drop
+    handleDrop: function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        event.currentTarget.style.opacity = '1';
+        event.currentTarget.style.transform = 'scale(1)';
+        
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                this.processImageFile(file);
+            } else {
+                window.showNotification('Please drop an image file', 'error');
+            }
+        }
+    },
+
+    // Process uploaded image file
+    processImageFile: function(file) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            window.showNotification('Please select an image file', 'error');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            window.showNotification('Image file is too large. Please select a file smaller than 5MB', 'error');
+            return;
+        }
+
+        window.showNotification('Processing image...', 'info');
+
+        // Read and process the file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.resizeAndOptimizeImage(e.target.result, (optimizedDataUrl) => {
+                this.uploadAvatar(optimizedDataUrl);
+            });
+        };
+        reader.onerror = () => {
+            window.showNotification('Error reading image file', 'error');
+        };
+        reader.readAsDataURL(file);
+    },
+
+    // Resize and optimize image
+    resizeAndOptimizeImage: function(dataUrl, callback) {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Set target dimensions (square aspect ratio)
+            const targetSize = 200;
+            const aspectRatio = img.width / img.height;
+            
+            let newWidth, newHeight;
+            if (aspectRatio > 1) {
+                // Landscape
+                newWidth = targetSize;
+                newHeight = targetSize / aspectRatio;
+            } else {
+                // Portrait or square
+                newWidth = targetSize * aspectRatio;
+                newHeight = targetSize;
+            }
+
+            // Set canvas size
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+
+            // Fill background with white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, targetSize, targetSize);
+
+            // Calculate position to center the image
+            const x = (targetSize - newWidth) / 2;
+            const y = (targetSize - newHeight) / 2;
+
+            // Draw image
+            ctx.drawImage(img, x, y, newWidth, newHeight);
+
+            // Convert to optimized data URL
+            const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            callback(optimizedDataUrl);
+        };
+        img.onerror = () => {
+            window.showNotification('Error processing image', 'error');
+        };
+        img.src = dataUrl;
+    },
+
+    // Upload avatar to user profile
+    uploadAvatar: async function(dataUrl) {
+        const currentUser = window.auth?.currentUser;
+        if (!currentUser) {
+            window.showNotification('User not authenticated', 'error');
+            return;
+        }
+
+        try {
+            window.showNotification('Uploading profile picture...', 'info');
+
+            // Update user avatar in Firestore
+            const success = await window.authModule.updateUserAvatar(currentUser, dataUrl);
+            
+            if (success) {
+                // Update UI immediately
+                this.updateAvatarDisplay(dataUrl);
+                window.showNotification('Profile picture updated successfully!', 'success');
+            } else {
+                window.showNotification('Failed to update profile picture', 'error');
+            }
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            window.showNotification('Error uploading profile picture', 'error');
+        }
+    },
+
+    // Update avatar display in UI
+    updateAvatarDisplay: function(newAvatarUrl = null) {
+        const avatarImg = document.getElementById('current-user-avatar');
+        const currentUser = window.auth?.currentUser;
+        
+        if (!avatarImg || !currentUser) return;
+
+        const avatarUrl = newAvatarUrl || window.auth.userAvatar;
+        
+        if (avatarUrl && avatarUrl.trim() !== '') {
+            avatarImg.src = avatarUrl;
+            avatarImg.onerror = () => {
+                // Fallback to generated avatar if custom avatar fails to load
+                this.setFallbackAvatar(avatarImg, currentUser);
+            };
+        } else {
+            this.setFallbackAvatar(avatarImg, currentUser);
+        }
+    },
+
+    // Set fallback avatar using UI Avatars service
+    setFallbackAvatar: function(imgElement, username) {
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=3b82f6&color=ffffff&size=200&bold=true`;
+        imgElement.src = fallbackUrl;
+    },
+
+    // Generate avatar preview
+    generateAvatarPreview: function(dataUrl, callback) {
+        const previewContainer = document.createElement('div');
+        previewContainer.className = 'avatar-preview-modal';
+        previewContainer.innerHTML = `
+            <div class="avatar-preview-content glass-strong">
+                <div class="preview-header">
+                    <h3>Profile Picture Preview</h3>
+                    <button class="preview-close" type="button">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="preview-body">
+                    <div class="preview-image-container">
+                        <img src="${dataUrl}" alt="Avatar Preview" class="preview-image">
+                    </div>
+                    <p>This will be your new profile picture</p>
+                </div>
+                <div class="preview-actions">
+                    <button class="btn btn-outline preview-cancel">Cancel</button>
+                    <button class="btn btn-primary preview-confirm">Set as Profile Picture</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(previewContainer);
+        lucide.createIcons();
+
+        // Event listeners
+        previewContainer.querySelector('.preview-close').addEventListener('click', () => {
+            this.closePreview(previewContainer);
+        });
+
+        previewContainer.querySelector('.preview-cancel').addEventListener('click', () => {
+            this.closePreview(previewContainer);
+        });
+
+        previewContainer.querySelector('.preview-confirm').addEventListener('click', () => {
+            this.closePreview(previewContainer);
+            callback(dataUrl);
+        });
+
+        // Close on backdrop click
+        previewContainer.addEventListener('click', (e) => {
+            if (e.target === previewContainer) {
+                this.closePreview(previewContainer);
+            }
+        });
+    },
+
+    // Close preview modal
+    closePreview: function(previewContainer) {
+        previewContainer.remove();
+    },
+
+    // Get current avatar data URL for export/backup
+    getCurrentAvatarDataUrl: function() {
+        return window.auth?.userAvatar || null;
+    },
+
+    // Validate image dimensions and format
+    validateImage: function(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const validation = {
+                    isValid: true,
+                    errors: []
+                };
+
+                // Check dimensions (minimum 100x100, maximum 2000x2000)
+                if (img.width < 100 || img.height < 100) {
+                    validation.isValid = false;
+                    validation.errors.push('Image must be at least 100x100 pixels');
+                }
+
+                if (img.width > 2000 || img.height > 2000) {
+                    validation.isValid = false;
+                    validation.errors.push('Image must be smaller than 2000x2000 pixels');
+                }
+
+                resolve(validation);
+            };
+            img.onerror = () => {
+                reject(new Error('Invalid image file'));
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    },
+
+    // Create circular crop overlay
+    createCropOverlay: function(imageElement, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'crop-overlay';
+        overlay.innerHTML = `
+            <div class="crop-container">
+                <div class="crop-image-wrapper">
+                    <img src="${imageElement.src}" alt="Crop" class="crop-image">
+                    <div class="crop-circle"></div>
+                </div>
+                <div class="crop-controls">
+                    <button class="btn btn-outline crop-cancel">Cancel</button>
+                    <button class="btn btn-primary crop-apply">Apply Crop</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Implement crop functionality here if needed
+        // For now, we'll just use the resizeAndOptimizeImage function
+
+        overlay.querySelector('.crop-cancel').addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        overlay.querySelector('.crop-apply').addEventListener('click', () => {
+            overlay.remove();
+            callback(imageElement.src);
+        });
+    }
+};
+
+// CSS styles for profile functionality
+const profileStyles = `
+    .user-avatar-container {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .user-avatar {
+        transition: all 0.3s ease;
+    }
+
+    .user-avatar:hover {
+        transform: scale(1.05);
+    }
+
+    .avatar-preview-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+    }
+
+    .avatar-preview-content {
+        max-width: 400px;
+        width: 90%;
+        padding: 0;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .preview-header {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .preview-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .preview-close {
+        background: none;
+        border: none;
+        color: #ffffff;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+    }
+
+    .preview-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .preview-body {
+        padding: 24px;
+        text-align: center;
+    }
+
+    .preview-image-container {
+        margin-bottom: 16px;
+    }
+
+    .preview-image {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .preview-actions {
+        padding: 16px 24px 24px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .crop-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+    }
+
+    .crop-container {
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+    }
+
+    .crop-image-wrapper {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+
+    .crop-image {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 8px;
+    }
+
+    .crop-circle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 200px;
+        height: 200px;
+        border: 2px solid #3b82f6;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }
+
+    .crop-controls {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+    }
+
+    /* Drag and drop styles */
+    .user-avatar-container.drag-over {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .avatar-preview-content {
+            width: 95%;
+            margin: 20px;
+        }
+
+        .preview-image {
+            width: 100px;
+            height: 100px;
+        }
+
+        .crop-container {
+            width: 95%;
+        }
+
+        .crop-circle {
+            width: 150px;
+            height: 150px;
+        }
+    }
+
+    /* Loading states */
+    .avatar-uploading {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .avatar-uploading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+`;
+
+// Inject profile styles
+const profileStyleSheet = document.createElement('style');
+profileStyleSheet.textContent = profileStyles;
+document.head.appendChild(profileStyleSheet);
+
+// Initialize profile manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.profileManager) {
+        window.profileManager.init();
+    }
+});

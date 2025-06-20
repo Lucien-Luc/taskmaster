@@ -1,0 +1,1034 @@
+// tasks.js - Enhanced Task Management System
+import { 
+    collection, query, where, getDocs, addDoc, updateDoc, deleteDoc,
+    onSnapshot, serverTimestamp, orderBy, doc
+} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+// Global task manager object
+window.taskManager = {
+    currentView: 'calendar',
+    currentDate: new Date(),
+    currentWeekDate: new Date(),
+    currentQuarter: Math.floor(new Date().getMonth() / 3) + 1,
+    currentYear: new Date().getFullYear(),
+    tasks: [],
+    users: [],
+    currentTask: null, // For editing
+    
+    // Performance optimization properties
+    localTaskCache: new Map(),
+    pendingUpdates: new Map(),
+    updateBatchTimeout: null,
+    isUpdating: false,
+    
+    // Notification system
+    notifications: [],
+    
+    // User blocking system
+    userBlocks: new Map(),
+    gracePeriods: new Map(),
+    
+    // Initialize the task manager
+    init: async function() {
+        console.log('Initializing task manager...');
+        
+        // Initialize stored data first
+        this.initializeUserBlocks();
+        this.initializeNotifications();
+        
+        await this.fetchUsers();
+        this.setupEventListeners();
+        this.setupViewNavigation();
+        this.setupFilterListeners();
+        this.setupSidebarToggle();
+        this.listenForTaskChanges();
+        this.renderCalendar();
+        this.updateTaskStats();
+        
+        // Initialize additional modules
+        if (window.taskViews && typeof window.taskViews.init === 'function') {
+            window.taskViews.init();
+        }
+        
+        if (window.dragDropHandler && typeof window.dragDropHandler.init === 'function') {
+            window.dragDropHandler.init();
+        }
+        
+        if (window.exportManager && typeof window.exportManager.init === 'function') {
+            window.exportManager.init();
+        }
+        
+        console.log('Task manager initialized');
+    },
+    
+    // Fetch all users from Firestore
+    fetchUsers: async function() {
+        try {
+            const q = query(collection(window.db, 'users'));
+            const querySnapshot = await getDocs(q);
+            this.users = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log('Users fetched:', this.users.length);
+            this.populateUserSelects();
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    },
+    
+    // Populate user-related dropdowns
+    populateUserSelects: function() {
+        const filterUserSelect = document.getElementById('filter-user');
+        const assignedUsersContainer = document.getElementById('task-assigned-users');
+        
+        // Clear existing options
+        if (filterUserSelect) {
+            filterUserSelect.innerHTML = '<option value="">All Members</option>';
+            this.users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.username || user.name;
+                option.textContent = user.username || user.name;
+                filterUserSelect.appendChild(option);
+            });
+        }
+        
+        // Populate assignment checkboxes
+        if (assignedUsersContainer) {
+            assignedUsersContainer.innerHTML = '';
+            this.users.forEach(user => {
+                const userCheckbox = document.createElement('div');
+                userCheckbox.className = 'user-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `assign-${user.username || user.name}`;
+                checkbox.value = user.username || user.name;
+                
+                const label = document.createElement('label');
+                label.htmlFor = checkbox.id;
+                label.textContent = user.username || user.name;
+                
+                userCheckbox.appendChild(checkbox);
+                userCheckbox.appendChild(label);
+                assignedUsersContainer.appendChild(userCheckbox);
+            });
+        }
+    },
+    
+    // Fetch tasks from Firestore with realtime updates and performance optimization
+    listenForTaskChanges: function() {
+        try {
+            const q = query(collection(window.db, 'tasks'), orderBy('dueDate', 'asc'));
+            
+            onSnapshot(q, (snapshot) => {
+                // Process changes efficiently
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    const task = {
+                        id: change.doc.id,
+                        ...data,
+                        // Handle different date formats
+                        dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
+                        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                        startDate: data.startDate?.toDate ? data.startDate.toDate() : (data.startDate ? new Date(data.startDate) : null)
+                    };
+                    
+                    if (change.type === 'added' || change.type === 'modified') {
+                        this.localTaskCache.set(task.id, task);
+                    } else if (change.type === 'removed') {
+                        this.localTaskCache.delete(task.id);
+                    }
+                });
+                
+                // Update tasks array from cache
+                this.tasks = Array.from(this.localTaskCache.values());
+                console.log('Tasks updated:', this.tasks.length);
+                
+                // Check for overdue tasks and grace periods
+                this.processOverdueTasks();
+                
+                // Batch update views to prevent multiple renders
+                this.scheduleViewUpdate();
+            });
+        } catch (error) {
+            console.error('Error listening for task changes:', error);
+        }
+    },
+    
+    // Scheduled view update to prevent excessive rendering
+    scheduleViewUpdate: function() {
+        if (this.updateBatchTimeout) {
+            clearTimeout(this.updateBatchTimeout);
+        }
+        
+        this.updateBatchTimeout = setTimeout(() => {
+            this.updateAllViews();
+            this.updateTaskStats();
+        }, 100); // 100ms debounce
+    },
+    
+    // Update all views when tasks change
+    updateAllViews: function() {
+        if (this.isUpdating) return;
+        this.isUpdating = true;
+        
+        try {
+            // Update current view
+            switch (this.currentView) {
+                case 'calendar':
+                    this.renderCalendar();
+                    break;
+                case 'weekly':
+                    if (window.taskViews && typeof window.taskViews.renderWeeklyView === 'function') {
+                        window.taskViews.renderWeeklyView();
+                    }
+                    break;
+                case 'monthly':
+                    if (window.taskViews && typeof window.taskViews.renderMonthlyView === 'function') {
+                        window.taskViews.renderMonthlyView();
+                    }
+                    break;
+                case 'quarterly':
+                    if (window.taskViews && typeof window.taskViews.renderQuarterlyView === 'function') {
+                        window.taskViews.renderQuarterlyView();
+                    }
+                    break;
+                case 'annually':
+                    if (window.taskViews && typeof window.taskViews.renderAnnualView === 'function') {
+                        window.taskViews.renderAnnualView();
+                    }
+                    break;
+                case 'kanban':
+                    this.renderKanbanBoard();
+                    break;
+            }
+            
+            // Update search results if there's an active search
+            this.performSearch();
+        } finally {
+            this.isUpdating = false;
+        }
+    },
+    
+    // Setup event listeners for the UI
+    setupEventListeners: function() {
+        // Create task button
+        const createTaskBtn = document.getElementById('create-task-btn');
+        if (createTaskBtn) {
+            createTaskBtn.addEventListener('click', () => {
+                this.openTaskModal();
+            });
+        }
+        
+        // Task form submission
+        const taskForm = document.getElementById('task-form');
+        if (taskForm) {
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleTaskSubmit();
+            });
+        }
+        
+        // Cancel task button
+        const cancelTaskBtn = document.getElementById('cancel-task');
+        if (cancelTaskBtn) {
+            cancelTaskBtn.addEventListener('click', () => {
+                document.getElementById('task-modal').classList.add('hidden');
+            });
+        }
+        
+        // Close modal buttons
+        const closeTaskModal = document.getElementById('close-task-modal');
+        if (closeTaskModal) {
+            closeTaskModal.addEventListener('click', () => {
+                document.getElementById('task-modal').classList.add('hidden');
+            });
+        }
+        
+        const closeTaskDetails = document.getElementById('close-task-details');
+        if (closeTaskDetails) {
+            closeTaskDetails.addEventListener('click', () => {
+                document.getElementById('task-details-modal').classList.add('hidden');
+            });
+        }
+        
+        // Task details modal buttons
+        const editTaskBtn = document.getElementById('edit-task-btn');
+        if (editTaskBtn) {
+            editTaskBtn.addEventListener('click', () => {
+                if (this.currentTask) {
+                    document.getElementById('task-details-modal').classList.add('hidden');
+                    this.openTaskModal(this.currentTask);
+                }
+            });
+        }
+        
+        const deleteTaskBtn = document.getElementById('delete-task-btn');
+        if (deleteTaskBtn) {
+            deleteTaskBtn.addEventListener('click', () => {
+                if (this.currentTask && confirm('Are you sure you want to delete this task?')) {
+                    this.deleteTask(this.currentTask.id);
+                    document.getElementById('task-details-modal').classList.add('hidden');
+                }
+            });
+        }
+        
+        const closeDetailsBtn = document.getElementById('close-details-btn');
+        if (closeDetailsBtn) {
+            closeDetailsBtn.addEventListener('click', () => {
+                document.getElementById('task-details-modal').classList.add('hidden');
+            });
+        }
+        
+        // Calendar navigation
+        const prevMonth = document.getElementById('prev-month');
+        const nextMonth = document.getElementById('next-month');
+        
+        if (prevMonth) {
+            prevMonth.addEventListener('click', () => {
+                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                this.renderCalendar();
+            });
+        }
+        
+        if (nextMonth) {
+            nextMonth.addEventListener('click', () => {
+                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                this.renderCalendar();
+            });
+        }
+        
+        // Calendar day double-click for task creation
+        const calendarDays = document.getElementById('calendar-days');
+        if (calendarDays) {
+            calendarDays.addEventListener('dblclick', (e) => {
+                if (e.target.classList.contains('calendar-day') && e.target.dataset.day) {
+                    const day = parseInt(e.target.dataset.day);
+                    const month = this.currentDate.getMonth();
+                    const year = this.currentDate.getFullYear();
+                    const clickedDate = new Date(year, month, day);
+                    
+                    this.openTaskModal(null, clickedDate);
+                }
+            });
+        }
+        
+        // Search functionality
+        const searchInput = document.getElementById('task-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.performSearch(e.target.value);
+            });
+        }
+    },
+    
+    // Setup filter event listeners
+    setupFilterListeners: function() {
+        // Filters toggle
+        const filtersToggle = document.getElementById('filters-toggle');
+        const filtersDropdown = document.getElementById('filters-dropdown');
+        
+        if (filtersToggle && filtersDropdown) {
+            filtersToggle.addEventListener('click', () => {
+                filtersDropdown.classList.toggle('hidden');
+            });
+        }
+        
+        // Apply filters button
+        const applyFiltersBtn = document.getElementById('apply-filters');
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => {
+                this.applyFilters();
+            });
+        }
+        
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                this.clearFilters();
+            });
+        }
+    },
+    
+    // Setup view navigation
+    setupViewNavigation: function() {
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                const view = e.currentTarget.dataset.view;
+                this.switchView(view);
+            });
+        });
+    },
+    
+    // Setup sidebar toggle functionality
+    setupSidebarToggle: function() {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        
+        if (sidebarToggle && sidebar && mainContent) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+                
+                // Update toggle button icon
+                const icon = sidebarToggle.querySelector('[data-lucide]');
+                if (icon) {
+                    if (sidebar.classList.contains('collapsed')) {
+                        icon.setAttribute('data-lucide', 'sidebar-open');
+                    } else {
+                        icon.setAttribute('data-lucide', 'sidebar');
+                    }
+                    lucide.createIcons();
+                }
+            });
+        }
+    },
+    
+    // Switch between different views
+    switchView: function(view) {
+        // Update active nav item
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`[data-view="${view}"]`).classList.add('active');
+        
+        // Hide all views
+        document.querySelectorAll('.view-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        // Show selected view
+        const viewElement = document.getElementById(`${view}-view`);
+        if (viewElement) {
+            viewElement.classList.remove('hidden');
+            this.currentView = view;
+            
+            // Render the view
+            switch (view) {
+                case 'calendar':
+                    this.renderCalendar();
+                    break;
+                case 'kanban':
+                    this.renderKanbanBoard();
+                    break;
+                case 'weekly':
+                    if (window.taskViews && typeof window.taskViews.renderWeeklyView === 'function') {
+                        window.taskViews.renderWeeklyView();
+                    }
+                    break;
+                case 'monthly':
+                    if (window.taskViews && typeof window.taskViews.renderMonthlyView === 'function') {
+                        window.taskViews.renderMonthlyView();
+                    }
+                    break;
+                case 'quarterly':
+                    if (window.taskViews && typeof window.taskViews.renderQuarterlyView === 'function') {
+                        window.taskViews.renderQuarterlyView();
+                    }
+                    break;
+                case 'annually':
+                    if (window.taskViews && typeof window.taskViews.renderAnnualView === 'function') {
+                        window.taskViews.renderAnnualView();
+                    }
+                    break;
+            }
+        }
+    },
+    
+    // Render calendar view
+    renderCalendar: function() {
+        const monthYear = document.getElementById('current-month-year');
+        const calendarDays = document.getElementById('calendar-days');
+        
+        if (!monthYear || !calendarDays) return;
+        
+        const month = this.currentDate.getMonth();
+        const year = this.currentDate.getFullYear();
+        
+        // Update month/year display
+        monthYear.textContent = new Date(year, month, 1).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric'
+        });
+        
+        // Clear calendar
+        calendarDays.innerHTML = '';
+        
+        // Get first day of month and number of days
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+        
+        // Add previous month's trailing days
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const day = daysInPrevMonth - i;
+            const dayElement = this.createCalendarDay(day, true, year, month - 1);
+            calendarDays.appendChild(dayElement);
+        }
+        
+        // Add current month's days
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = this.createCalendarDay(day, false, year, month);
+            calendarDays.appendChild(dayElement);
+        }
+        
+        // Add next month's leading days
+        const totalCells = calendarDays.children.length;
+        const remainingCells = 42 - totalCells; // 6 rows × 7 days
+        for (let day = 1; day <= remainingCells; day++) {
+            const dayElement = this.createCalendarDay(day, true, year, month + 1);
+            calendarDays.appendChild(dayElement);
+        }
+    },
+    
+    // Create calendar day element
+    createCalendarDay: function(day, otherMonth, year, month) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        dayElement.dataset.day = day;
+        
+        if (otherMonth) {
+            dayElement.classList.add('other-month');
+        }
+        
+        // Check if today
+        const today = new Date();
+        const dayDate = new Date(year, month, day);
+        if (dayDate.toDateString() === today.toDateString()) {
+            dayElement.classList.add('today');
+        }
+        
+        // Add day number
+        const dayNumber = document.createElement('div');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = day;
+        dayElement.appendChild(dayNumber);
+        
+        // Add tasks for this day
+        const dayTasks = document.createElement('div');
+        dayTasks.className = 'day-tasks';
+        
+        const tasksForDay = this.tasks.filter(task => {
+            const taskDate = new Date(task.dueDate);
+            return taskDate.getDate() === day && 
+                   taskDate.getMonth() === month && 
+                   taskDate.getFullYear() === year;
+        });
+        
+        tasksForDay.slice(0, 3).forEach(task => {
+            const taskIndicator = document.createElement('div');
+            taskIndicator.className = `task-indicator priority-${task.priority}`;
+            taskIndicator.textContent = task.title;
+            taskIndicator.title = task.title;
+            taskIndicator.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showTaskDetails(task);
+            });
+            dayTasks.appendChild(taskIndicator);
+        });
+        
+        if (tasksForDay.length > 3) {
+            const moreIndicator = document.createElement('div');
+            moreIndicator.className = 'task-indicator';
+            moreIndicator.textContent = `+${tasksForDay.length - 3} more`;
+            dayTasks.appendChild(moreIndicator);
+        }
+        
+        dayElement.appendChild(dayTasks);
+        return dayElement;
+    },
+    
+    // Render Kanban board
+    renderKanbanBoard: function() {
+        const statuses = ['todo', 'in-progress', 'blocked', 'completed', 'paused'];
+        
+        statuses.forEach(status => {
+            const container = document.getElementById(`${status}-tasks`);
+            const countElement = document.getElementById(`${status}-count`);
+            
+            if (!container || !countElement) return;
+            
+            const statusTasks = this.tasks.filter(task => task.status === status);
+            countElement.textContent = statusTasks.length;
+            
+            container.innerHTML = '';
+            statusTasks.forEach(task => {
+                const taskElement = this.createKanbanTask(task);
+                container.appendChild(taskElement);
+            });
+        });
+    },
+    
+    // Create Kanban task element
+    createKanbanTask: function(task) {
+        const taskElement = document.createElement('div');
+        taskElement.className = 'kanban-task';
+        taskElement.draggable = true;
+        taskElement.dataset.taskId = task.id;
+        
+        taskElement.innerHTML = `
+            <div class="task-title">${task.title}</div>
+            <div class="task-meta">
+                <span class="task-priority ${task.priority}">${task.priority}</span>
+                <span class="task-due">${new Date(task.dueDate).toLocaleDateString()}</span>
+            </div>
+            ${task.description ? `<div class="task-description">${task.description.substring(0, 100)}${task.description.length > 100 ? '...' : ''}</div>` : ''}
+            ${task.assignedUsers && task.assignedUsers.length > 0 ? `
+                <div class="task-assignees">
+                    ${task.assignedUsers.map(user => `<span class="assignee-badge">${user}</span>`).join('')}
+                </div>
+            ` : ''}
+        `;
+        
+        taskElement.addEventListener('click', () => {
+            this.showTaskDetails(task);
+        });
+        
+        return taskElement;
+    },
+    
+    // Open task modal for creating or editing
+    openTaskModal: function(task = null, presetDate = null) {
+        const modal = document.getElementById('task-modal');
+        const form = document.getElementById('task-form');
+        const modalTitle = document.getElementById('task-modal-title');
+        const submitText = document.getElementById('task-submit-text');
+        
+        // Reset form
+        form.reset();
+        this.currentTask = task;
+        
+        if (task) {
+            // Editing existing task
+            modalTitle.textContent = 'Edit Task';
+            submitText.textContent = 'Update Task';
+            
+            // Populate form with task data
+            document.getElementById('task-title').value = task.title || '';
+            document.getElementById('task-description').value = task.description || '';
+            document.getElementById('task-priority').value = task.priority || '';
+            document.getElementById('task-category').value = task.category || '';
+            document.getElementById('task-status').value = task.status || 'todo';
+            document.getElementById('task-progress').value = task.progress || 0;
+            document.getElementById('task-estimated-hours').value = task.estimatedHours || '';
+            document.getElementById('task-tags').value = task.tags ? task.tags.join(', ') : '';
+            
+            // Handle dates
+            if (task.startDate) {
+                document.getElementById('task-start-date').value = new Date(task.startDate).toISOString().split('T')[0];
+            }
+            if (task.dueDate) {
+                document.getElementById('task-due-date').value = new Date(task.dueDate).toISOString().split('T')[0];
+            }
+            
+            // Set assigned users
+            if (task.assignedUsers) {
+                task.assignedUsers.forEach(user => {
+                    const checkbox = document.getElementById(`assign-${user}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+        } else {
+            // Creating new task
+            modalTitle.textContent = 'Create New Task';
+            submitText.textContent = 'Create Task';
+            
+            // Set preset date if provided
+            if (presetDate) {
+                document.getElementById('task-due-date').value = presetDate.toISOString().split('T')[0];
+            }
+        }
+        
+        modal.classList.remove('hidden');
+    },
+    
+    // Handle task form submission
+    handleTaskSubmit: async function() {
+        const form = document.getElementById('task-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const formData = new FormData(form);
+        
+        // Disable submit button
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Saving...';
+        lucide.createIcons();
+        
+        try {
+            // Collect form data
+            const taskData = {
+                title: document.getElementById('task-title').value.trim(),
+                description: document.getElementById('task-description').value.trim(),
+                priority: document.getElementById('task-priority').value,
+                category: document.getElementById('task-category').value,
+                status: document.getElementById('task-status').value,
+                progress: parseInt(document.getElementById('task-progress').value) || 0,
+                estimatedHours: parseFloat(document.getElementById('task-estimated-hours').value) || null,
+                startDate: document.getElementById('task-start-date').value ? new Date(document.getElementById('task-start-date').value) : null,
+                dueDate: new Date(document.getElementById('task-due-date').value),
+                tags: document.getElementById('task-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
+                assignedUsers: Array.from(document.querySelectorAll('#task-assigned-users input[type="checkbox"]:checked')).map(cb => cb.value),
+                updatedAt: new Date()
+            };
+            
+            if (this.currentTask) {
+                // Update existing task
+                await this.updateTask(this.currentTask.id, taskData);
+                window.showNotification('Task updated successfully!', 'success');
+            } else {
+                // Create new task
+                taskData.createdAt = new Date();
+                await this.createTask(taskData);
+                window.showNotification('Task created successfully!', 'success');
+            }
+            
+            // Close modal
+            document.getElementById('task-modal').classList.add('hidden');
+            
+        } catch (error) {
+            console.error('Error saving task:', error);
+            window.showNotification('Error saving task: ' + error.message, 'error');
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    },
+    
+    // Create new task
+    createTask: async function(taskData) {
+        try {
+            await addDoc(collection(window.db, 'tasks'), taskData);
+        } catch (error) {
+            console.error('Error creating task:', error);
+            throw error;
+        }
+    },
+    
+    // Update existing task
+    updateTask: async function(taskId, taskData) {
+        try {
+            const taskRef = doc(window.db, 'tasks', taskId);
+            await updateDoc(taskRef, taskData);
+        } catch (error) {
+            console.error('Error updating task:', error);
+            throw error;
+        }
+    },
+    
+    // Update task status (for drag and drop)
+    updateTaskStatus: async function(taskId, newStatus) {
+        try {
+            const taskRef = doc(window.db, 'tasks', taskId);
+            await updateDoc(taskRef, { 
+                status: newStatus,
+                updatedAt: new Date()
+            });
+            
+            window.showNotification('Task status updated!', 'success');
+        } catch (error) {
+            console.error('Error updating task status:', error);
+            window.showNotification('Error updating task status', 'error');
+            throw error;
+        }
+    },
+    
+    // Delete task
+    deleteTask: async function(taskId) {
+        try {
+            await deleteDoc(doc(window.db, 'tasks', taskId));
+            window.showNotification('Task deleted successfully!', 'success');
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            window.showNotification('Error deleting task', 'error');
+        }
+    },
+    
+    // Show task details modal
+    showTaskDetails: function(task) {
+        this.currentTask = task;
+        const modal = document.getElementById('task-details-modal');
+        const content = document.getElementById('task-details-content');
+        const title = document.getElementById('task-details-title');
+        
+        title.textContent = task.title;
+        
+        content.innerHTML = `
+            <div class="task-details-grid">
+                <div class="detail-section">
+                    <h4>Description</h4>
+                    <p>${task.description || 'No description provided'}</p>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-item">
+                        <h4>Priority</h4>
+                        <span class="task-priority ${task.priority}">${task.priority}</span>
+                    </div>
+                    <div class="detail-item">
+                        <h4>Status</h4>
+                        <span class="status-badge ${task.status}">${task.status}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-item">
+                        <h4>Category</h4>
+                        <p>${task.category}</p>
+                    </div>
+                    <div class="detail-item">
+                        <h4>Progress</h4>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${task.progress || 0}%"></div>
+                        </div>
+                        <span>${task.progress || 0}%</span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-item">
+                        <h4>Start Date</h4>
+                        <p>${task.startDate ? new Date(task.startDate).toLocaleDateString() : 'Not set'}</p>
+                    </div>
+                    <div class="detail-item">
+                        <h4>Due Date</h4>
+                        <p>${new Date(task.dueDate).toLocaleDateString()}</p>
+                    </div>
+                </div>
+                
+                ${task.assignedUsers && task.assignedUsers.length > 0 ? `
+                    <div class="detail-section">
+                        <h4>Assigned Users</h4>
+                        <div class="assigned-users">
+                            ${task.assignedUsers.map(user => `<span class="assignee-badge">${user}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${task.tags && task.tags.length > 0 ? `
+                    <div class="detail-section">
+                        <h4>Tags</h4>
+                        <div class="task-tags">
+                            ${task.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div class="detail-row">
+                    <div class="detail-item">
+                        <h4>Created</h4>
+                        <p>${new Date(task.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div class="detail-item">
+                        <h4>Last Updated</h4>
+                        <p>${task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : 'Never'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.remove('hidden');
+    },
+    
+    // Search functionality
+    performSearch: function(query = '') {
+        const searchResults = document.getElementById('search-results');
+        const searchContent = document.getElementById('search-results-content');
+        
+        if (!query || query.trim() === '') {
+            searchResults.classList.add('hidden');
+            return;
+        }
+        
+        const filteredTasks = this.tasks.filter(task => {
+            const searchTerm = query.toLowerCase();
+            return task.title.toLowerCase().includes(searchTerm) ||
+                   (task.description && task.description.toLowerCase().includes(searchTerm)) ||
+                   (task.tags && task.tags.some(tag => tag.toLowerCase().includes(searchTerm))) ||
+                   (task.assignedUsers && task.assignedUsers.some(user => user.toLowerCase().includes(searchTerm)));
+        });
+        
+        if (filteredTasks.length > 0) {
+            searchContent.innerHTML = filteredTasks.map(task => `
+                <div class="search-result-item" onclick="window.taskManager.showTaskDetails(window.taskManager.tasks.find(t => t.id === '${task.id}'))">
+                    <div class="search-result-title">${task.title}</div>
+                    <div class="search-result-meta">
+                        <span>Priority: ${task.priority}</span>
+                        <span>Status: ${task.status}</span>
+                        <span>Due: ${new Date(task.dueDate).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+            searchResults.classList.remove('hidden');
+        } else {
+            searchContent.innerHTML = '<p>No tasks found matching your search.</p>';
+            searchResults.classList.remove('hidden');
+        }
+    },
+    
+    // Apply filters
+    applyFilters: function() {
+        const filters = {
+            user: document.getElementById('filter-user').value,
+            priority: document.getElementById('filter-priority').value,
+            category: document.getElementById('filter-category').value,
+            status: document.getElementById('filter-status').value,
+            dateStart: document.getElementById('filter-date-start').value,
+            dateEnd: document.getElementById('filter-date-end').value
+        };
+        
+        // Update task views with filters
+        if (window.taskViews) {
+            window.taskViews.currentFilter = filters;
+            window.taskViews.updateCurrentView();
+        }
+        
+        // Update current view
+        this.updateAllViews();
+        
+        window.showNotification('Filters applied', 'success');
+    },
+    
+    // Clear all filters
+    clearFilters: function() {
+        document.getElementById('filter-user').value = '';
+        document.getElementById('filter-priority').value = '';
+        document.getElementById('filter-category').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-date-start').value = '';
+        document.getElementById('filter-date-end').value = '';
+        
+        // Clear task views filters
+        if (window.taskViews) {
+            window.taskViews.currentFilter = {
+                user: '',
+                priority: '',
+                category: '',
+                status: '',
+                dateStart: '',
+                dateEnd: ''
+            };
+            window.taskViews.updateCurrentView();
+        }
+        
+        // Update current view
+        this.updateAllViews();
+        
+        window.showNotification('Filters cleared', 'success');
+    },
+    
+    // Update task statistics
+    updateTaskStats: function() {
+        const totalTasks = this.tasks.length;
+        const completedTasks = this.tasks.filter(task => task.status === 'completed').length;
+        const pendingTasks = this.tasks.filter(task => task.status !== 'completed').length;
+        const overdueTasks = this.tasks.filter(task => {
+            return task.status !== 'completed' && new Date(task.dueDate) < new Date();
+        }).length;
+        
+        // Update UI
+        const totalElement = document.getElementById('total-tasks');
+        const completedElement = document.getElementById('completed-tasks');
+        const pendingElement = document.getElementById('pending-tasks');
+        const overdueElement = document.getElementById('overdue-tasks');
+        
+        if (totalElement) totalElement.textContent = totalTasks;
+        if (completedElement) completedElement.textContent = completedTasks;
+        if (pendingElement) pendingElement.textContent = pendingTasks;
+        if (overdueElement) overdueElement.textContent = overdueTasks;
+    },
+    
+    // Initialize user blocks system
+    initializeUserBlocks: function() {
+        const stored = localStorage.getItem('mne_user_blocks');
+        if (stored) {
+            try {
+                const data = JSON.parse(stored);
+                this.userBlocks = new Map(data.blocks || []);
+                this.gracePeriods = new Map(data.grace || []);
+            } catch (e) {
+                console.error('Error loading user blocks:', e);
+            }
+        }
+    },
+    
+    // Process overdue tasks and handle user blocking
+    processOverdueTasks: function() {
+        const now = new Date();
+        const currentUser = window.auth?.currentUser;
+        
+        if (!currentUser) return;
+        
+        // Check for overdue tasks
+        const userOverdueTasks = this.tasks.filter(task => {
+            return task.assignedUsers && 
+                   task.assignedUsers.includes(currentUser) &&
+                   task.status !== 'completed' &&
+                   task.status !== 'paused' &&
+                   new Date(task.dueDate) < now;
+        });
+        
+        if (userOverdueTasks.length > 0) {
+            // Check if user is in grace period
+            const graceEnd = this.gracePeriods.get(currentUser);
+            if (!graceEnd || now > new Date(graceEnd)) {
+                // Block user
+                this.userBlocks.set(currentUser, now.toISOString());
+                this.saveUserBlocks();
+                
+                // Show notification
+                window.showNotification(
+                    `You have ${userOverdueTasks.length} overdue task(s). You can only move tasks to "Paused" until they are addressed.`,
+                    'error'
+                );
+            }
+        } else {
+            // Remove block if no overdue tasks
+            if (this.userBlocks.has(currentUser)) {
+                this.userBlocks.delete(currentUser);
+                this.gracePeriods.delete(currentUser);
+                this.saveUserBlocks();
+            }
+        }
+    },
+    
+    // Check if user is blocked
+    isUserBlocked: function(username) {
+        return this.userBlocks.has(username);
+    },
+    
+    // Save user blocks to localStorage
+    saveUserBlocks: function() {
+        const data = {
+            blocks: Array.from(this.userBlocks.entries()),
+            grace: Array.from(this.gracePeriods.entries())
+        };
+        localStorage.setItem('mne_user_blocks', JSON.stringify(data));
+    },
+    
+    // Initialize notifications system
+    initializeNotifications: function() {
+        const stored = localStorage.getItem('mne_notifications');
+        if (stored) {
+            try {
+                this.notifications = JSON.parse(stored);
+            } catch (e) {
+                console.error('Error loading notifications:', e);
+            }
+        }
+    }
+};
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for authentication to complete
+    if (window.auth && window.auth.isAuthenticated) {
+        window.taskManager.init();
+    }
+});

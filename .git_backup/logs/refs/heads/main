@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 3bcee336f8bd6da29fcfab50ab26b825de6efa3f Lucien <bpndc2024@gmail.com> 1750016954 +0000	branch: Created from origin/main
+3bcee336f8bd6da29fcfab50ab26b825de6efa3f fa130c461e1dfe853d4a1a9c1445d73f88873eab curvedreptilefe <43881501-curvedreptilefe@users.noreply.replit.com> 1750017004 +0000	commit: Document the structure of the project and remove the Python module
+fa130c461e1dfe853d4a1a9c1445d73f88873eab bf7e0878232cac1d668e9a63f0773ed020a69a58 curvedreptilefe <43881501-curvedreptilefe@users.noreply.replit.com> 1750017103 +0000	commit: Prevent task cards from appearing in incorrect locations after view changes
+bf7e0878232cac1d668e9a63f0773ed020a69a58 7e54d8a58a8090e4d834d7a6c56a5efd9cfac5e4 curvedreptilefe <43881501-curvedreptilefe@users.noreply.replit.com> 1750017129 +0000	commit: Prevent task cards from appearing in the sidebar after switching views
