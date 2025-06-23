@@ -1018,6 +1018,120 @@ body {
     flex-wrap: wrap;
 }
 
+/* Outlook Integration Styles - Dark Theme */
+.outlook-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.outlook-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.outlook-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.outlook-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.outlook-status .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.outlook-status .status-dot.connected {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.outlook-status .status-dot.disconnected {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.outlook-status .status-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+}
+
+.outlook-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.outlook-setup {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.outlook-setup .setup-message p {
+    margin: 0 0 1rem 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+}
+
+.outlook-setup .form-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.outlook-setup .form-control {
+    flex: 1;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 0.875rem;
+}
+
+.outlook-setup .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.outlook-setup .form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.outlook-setup small {
+    display: block;
+    margin-top: 0.5rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+}
+
+.outlook-setup small a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.outlook-setup small a:hover {
+    text-decoration: underline;
+}
+
 .kanban-column {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);

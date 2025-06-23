@@ -14,6 +14,7 @@ window.taskViews = {
         console.log('Initializing advanced task views...');
         this.setupFilterListeners();
         this.setupViewSpecificEvents();
+        this.setupOutlookIntegration();
     },
 
     // Setup filter event listeners
@@ -751,6 +752,158 @@ window.taskViews = {
         }
 
         return { tasks, period, type };
+    },
+
+    // Setup Outlook integration UI handlers
+    setupOutlookIntegration: function() {
+        const connectBtn = document.getElementById('connect-outlook-btn');
+        const syncBtn = document.getElementById('sync-outlook-btn');
+        const disconnectBtn = document.getElementById('disconnect-outlook-btn');
+        const saveClientIdBtn = document.getElementById('save-client-id-btn');
+        const clientIdInput = document.getElementById('microsoft-client-id');
+
+        if (saveClientIdBtn && clientIdInput) {
+            saveClientIdBtn.addEventListener('click', () => {
+                const clientId = clientIdInput.value.trim();
+                if (clientId) {
+                    window.outlookIntegration.setClientId(clientId);
+                    localStorage.setItem('microsoft_client_id', clientId);
+                    this.updateOutlookUI();
+                    window.notificationManager?.show('Microsoft Graph Client ID saved successfully!', 'success');
+                } else {
+                    window.notificationManager?.show('Please enter a valid Client ID', 'error');
+                }
+            });
+        }
+
+        if (connectBtn) {
+            connectBtn.addEventListener('click', async () => {
+                try {
+                    await window.outlookIntegration.authenticate();
+                } catch (error) {
+                    window.notificationManager?.show('Failed to connect to Outlook: ' + error.message, 'error');
+                }
+            });
+        }
+
+        if (syncBtn) {
+            syncBtn.addEventListener('click', async () => {
+                try {
+                    await window.outlookIntegration.syncCalendarEvents();
+                    window.notificationManager?.show('Outlook calendar synced successfully!', 'success');
+                    this.updateCurrentView();
+                } catch (error) {
+                    window.notificationManager?.show('Failed to sync calendar: ' + error.message, 'error');
+                }
+            });
+        }
+
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => {
+                window.outlookIntegration.logout();
+                this.updateOutlookUI();
+                window.notificationManager?.show('Disconnected from Outlook calendar', 'info');
+            });
+        }
+
+        // Initialize UI based on stored client ID
+        const storedClientId = localStorage.getItem('microsoft_client_id');
+        if (storedClientId) {
+            window.outlookIntegration.setClientId(storedClientId);
+            if (clientIdInput) clientIdInput.value = storedClientId;
+        }
+
+        this.updateOutlookUI();
+    },
+
+    // Update Outlook integration UI based on connection status
+    updateOutlookUI: function() {
+        const status = window.outlookIntegration?.getAuthStatus() || { isAuthenticated: false, hasClientId: false };
+        const statusElement = document.getElementById('outlook-status');
+        const setupSection = document.getElementById('outlook-setup');
+        const connectBtn = document.getElementById('connect-outlook-btn');
+        const syncBtn = document.getElementById('sync-outlook-btn');
+        const disconnectBtn = document.getElementById('disconnect-outlook-btn');
+
+        if (statusElement) {
+            const statusDot = statusElement.querySelector('.status-dot');
+            const statusText = statusElement.querySelector('.status-text');
+            
+            if (status.isAuthenticated) {
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.className = 'status-dot disconnected';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        // Show/hide UI elements based on status
+        if (!status.hasClientId) {
+            setupSection?.classList.remove('hidden');
+            connectBtn?.classList.add('hidden');
+            syncBtn?.classList.add('hidden');
+            disconnectBtn?.classList.add('hidden');
+        } else if (!status.isAuthenticated) {
+            setupSection?.classList.add('hidden');
+            connectBtn?.classList.remove('hidden');
+            syncBtn?.classList.add('hidden');
+            disconnectBtn?.classList.add('hidden');
+        } else {
+            setupSection?.classList.add('hidden');
+            connectBtn?.classList.add('hidden');
+            syncBtn?.classList.remove('hidden');
+            disconnectBtn?.classList.remove('hidden');
+        }
+    },
+
+    // Enhanced calendar rendering with Outlook events
+    refreshCalendar: function() {
+        const currentView = document.querySelector('.view-tab.active')?.dataset.view;
+        if (currentView === 'calendar') {
+            this.updateCurrentView();
+        }
+    },
+
+    // Get combined tasks including Outlook events
+    getCombinedTasks: function() {
+        let allTasks = [...(window.tasksData || [])];
+        
+        // Include Outlook events as tasks if available
+        if (window.outlookIntegration?.isAuthenticated) {
+            const outlookTasks = allTasks.filter(task => task.isOutlookEvent);
+            // Outlook tasks are already in window.tasksData, so no need to add separately
+        }
+        
+        return allTasks;
+    },
+
+    // Override getFilteredTasks to include Outlook events
+    getFilteredTasks: function() {
+        const allTasks = this.getCombinedTasks();
+        
+        return allTasks.filter(task => {
+            // Apply current filters
+            if (this.currentFilter.user && task.assignedTo !== this.currentFilter.user) return false;
+            if (this.currentFilter.priority && task.priority !== this.currentFilter.priority) return false;
+            if (this.currentFilter.category && task.category !== this.currentFilter.category) return false;
+            if (this.currentFilter.status && task.status !== this.currentFilter.status) return false;
+            
+            // Date range filtering
+            if (this.currentFilter.dateStart) {
+                const taskDate = new Date(task.dueDate);
+                const filterStart = new Date(this.currentFilter.dateStart);
+                if (taskDate < filterStart) return false;
+            }
+            
+            if (this.currentFilter.dateEnd) {
+                const taskDate = new Date(task.dueDate);
+                const filterEnd = new Date(this.currentFilter.dateEnd);
+                if (taskDate > filterEnd) return false;
+            }
+            
+            return true;
+        });
     }
 };
 
