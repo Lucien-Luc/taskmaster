@@ -169,20 +169,25 @@ window.taskViews = {
 
     // Setup view-specific event handlers
     setupViewSpecificEvents: function() {
+        // Remove existing listeners first
+        this.removeNavigationListeners();
+        
         // Week navigation for weekly view
         const prevWeek = document.getElementById('prev-week');
         const nextWeek = document.getElementById('next-week');
         
         if (prevWeek) {
-            prevWeek.addEventListener('click', () => {
+            prevWeek.onclick = () => {
+                console.log('Week navigation: Previous');
                 this.navigateWeek(-1);
-            });
+            };
         }
         
         if (nextWeek) {
-            nextWeek.addEventListener('click', () => {
+            nextWeek.onclick = () => {
+                console.log('Week navigation: Next');
                 this.navigateWeek(1);
-            });
+            };
         }
 
         // Month navigation for monthly view
@@ -190,15 +195,17 @@ window.taskViews = {
         const nextMonthView = document.getElementById('next-month-view');
         
         if (prevMonthView) {
-            prevMonthView.addEventListener('click', () => {
+            prevMonthView.onclick = () => {
+                console.log('Month navigation: Previous');
                 this.navigateMonth(-1);
-            });
+            };
         }
         
         if (nextMonthView) {
-            nextMonthView.addEventListener('click', () => {
+            nextMonthView.onclick = () => {
+                console.log('Month navigation: Next');
                 this.navigateMonth(1);
-            });
+            };
         }
 
         // Quarter navigation for quarterly view
@@ -206,15 +213,17 @@ window.taskViews = {
         const nextQuarter = document.getElementById('next-quarter');
         
         if (prevQuarter) {
-            prevQuarter.addEventListener('click', () => {
+            prevQuarter.onclick = () => {
+                console.log('Quarter navigation: Previous');
                 this.navigateQuarter(-1);
-            });
+            };
         }
         
         if (nextQuarter) {
-            nextQuarter.addEventListener('click', () => {
+            nextQuarter.onclick = () => {
+                console.log('Quarter navigation: Next');
                 this.navigateQuarter(1);
-            });
+            };
         }
 
         // Year navigation for annual view
@@ -222,16 +231,35 @@ window.taskViews = {
         const nextYear = document.getElementById('next-year');
         
         if (prevYear) {
-            prevYear.addEventListener('click', () => {
+            prevYear.onclick = () => {
+                console.log('Year navigation: Previous');
                 this.navigateYear(-1);
-            });
+            };
         }
         
         if (nextYear) {
-            nextYear.addEventListener('click', () => {
+            nextYear.onclick = () => {
+                console.log('Year navigation: Next');
                 this.navigateYear(1);
-            });
+            };
         }
+    },
+
+    // Remove navigation listeners to prevent duplicates
+    removeNavigationListeners: function() {
+        const navButtons = [
+            'prev-week', 'next-week',
+            'prev-month-view', 'next-month-view', 
+            'prev-quarter', 'next-quarter',
+            'prev-year', 'next-year'
+        ];
+        
+        navButtons.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.onclick = null;
+            }
+        });
     },
 
     // Navigation methods - completely rewritten to prevent skipping
