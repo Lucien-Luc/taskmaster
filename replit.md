@@ -133,9 +133,42 @@ This is a web-based Task Management & Monitoring system built for project manage
 - `FIREBASE_MESSAGING_SENDER_ID`: Firebase messaging sender ID
 - `FIREBASE_APP_ID`: Firebase application ID
 
+## Recent Changes
+- June 23, 2025: Successfully migrated from Replit Agent to standard Replit environment
+- June 23, 2025: Added dual theme system with dark and light glassmorphic themes
+- June 23, 2025: Implemented theme toggle functionality with local storage persistence
+- June 23, 2025: Positioned theme toggle button in bottom-right corner to avoid UI conflicts
+- June 23, 2025: Enhanced white theme with improved contrast and readability
+
+## Theme System
+The application now supports two glassmorphic themes:
+
+### Dark Theme (Default)
+- Dark blue gradient background (#00728d to #000000)
+- Semi-transparent white glass elements
+- Yellow accent colors for icons and highlights
+- Optimized for low-light usage
+
+### Light Theme 
+- Light blue gradient background (#f0f9ff to #e0f2fe)
+- Semi-transparent white glass elements with better opacity
+- Blue accent colors throughout the interface
+- Improved contrast for better readability
+- All components fully styled and responsive
+
+### Theme Toggle
+- Located in bottom-right corner to avoid conflicts with user profile
+- Sun/moon icons that change based on current theme
+- Smooth animations and hover effects
+- Saves theme preference to localStorage
+- Integrates with existing notification system
+
 ## Changelog
-- June 15, 2025. Initial setup
+- June 15, 2025: Initial setup
+- June 23, 2025: Migration to Replit environment completed
+- June 23, 2025: Dual theme system implementation completed
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Theme preference: Dual theme system with toggle functionality.
