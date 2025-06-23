@@ -71,7 +71,7 @@ window.taskViews = {
 
     // Setup filters dropdown functionality
     setupFiltersDropdown: function() {
-        console.log('Setting up filters dropdown...');
+        // Setting up filters dropdown
         
         // Wait for DOM to be ready
         const initDropdown = () => {
@@ -80,36 +80,25 @@ window.taskViews = {
             const clearFilters = document.getElementById('clear-filters');
             const applyFilters = document.getElementById('apply-filters');
             
-            console.log('Dropdown elements:', {
-                toggle: !!filtersToggle,
-                panel: !!filtersPanel,
-                clear: !!clearFilters,
-                apply: !!applyFilters
-            });
+            // Check if all required elements are present
             
             if (filtersToggle && filtersPanel) {
-                console.log('Adding click listener to filters toggle');
-                
-                // Remove any existing listeners
+                // Remove any existing listeners to prevent conflicts
                 const newToggle = filtersToggle.cloneNode(true);
                 filtersToggle.parentNode.replaceChild(newToggle, filtersToggle);
                 
                 newToggle.addEventListener('click', function(e) {
-                    console.log('Filters toggle clicked!');
                     e.preventDefault();
                     e.stopPropagation();
                     
                     const isHidden = filtersPanel.classList.contains('hidden');
-                    console.log('Panel is hidden:', isHidden);
                     
                     if (isHidden) {
                         filtersPanel.classList.remove('hidden');
                         newToggle.classList.add('active');
-                        console.log('Opened filters panel');
                     } else {
                         filtersPanel.classList.add('hidden');
                         newToggle.classList.remove('active');
-                        console.log('Closed filters panel');
                     }
                 });
 
@@ -120,10 +109,6 @@ window.taskViews = {
                         newToggle.classList.remove('active');
                     }
                 });
-                
-                console.log('Filters dropdown setup completed');
-            } else {
-                console.error('Required elements not found for filters dropdown');
             }
 
             if (clearFilters) {
