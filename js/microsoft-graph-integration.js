@@ -409,15 +409,59 @@ class MicrosoftGraphIntegration {
      */
     getEnvironmentConfig() {
         // In production, this would come from server-side environment variables
-        // For demo purposes, we'll use a placeholder that shows the integration pattern
         const clientId = window.MICROSOFT_CLIENT_ID || null;
         
-        if (!clientId) {
+        if (!clientId || clientId === 'demo-client-id-not-configured') {
             console.info('Microsoft Graph integration available but not configured.');
-            console.info('Contact your IT administrator to enable Microsoft 365 calendar integration.');
+            console.info('See MICROSOFT_SETUP.md for configuration instructions.');
+            
+            // Enable demo mode if available
+            if (window.DEMO_MODE && window.DEMO_OUTLOOK_EVENTS) {
+                console.info('Demo mode available - showing sample calendar events.');
+                setTimeout(() => this.loadDemoEvents(), 2000);
+            }
+            
+            return null;
         }
         
         return clientId;
+    }
+
+    /**
+     * Load demo events for demonstration purposes
+     */
+    loadDemoEvents() {
+        if (!window.DEMO_MODE || !window.DEMO_OUTLOOK_EVENTS) return;
+        
+        console.log('Loading demo Outlook events...');
+        this.updateCalendarWithEvents(window.DEMO_OUTLOOK_EVENTS);
+        
+        // Update UI to show demo state
+        const connectBtn = document.getElementById('outlook-connect-btn');
+        const statusText = document.getElementById('outlook-status-text');
+        const statusIndicator = document.getElementById('outlook-status-indicator');
+        
+        if (connectBtn) {
+            connectBtn.innerHTML = '<i data-lucide="eye"></i> View Demo';
+            connectBtn.onclick = () => {
+                this.showNotification('Demo mode active. See MICROSOFT_SETUP.md for real integration setup.', 'info');
+            };
+        }
+        
+        if (statusText) statusText.textContent = 'Demo mode - Sample events loaded';
+        if (statusIndicator) {
+            statusIndicator.className = 'status-indicator connected';
+            statusIndicator.style.background = '#FF9800'; // Orange for demo
+        }
+        
+        // Show demo events count
+        const eventsCount = document.getElementById('events-count');
+        if (eventsCount) eventsCount.textContent = window.DEMO_OUTLOOK_EVENTS.length;
+        
+        const syncStatus = document.getElementById('sync-status');
+        if (syncStatus) syncStatus.style.display = 'block';
+        
+        this.showNotification(`Demo: Loaded ${window.DEMO_OUTLOOK_EVENTS.length} sample calendar events`, 'info');
     }
 
     /**
