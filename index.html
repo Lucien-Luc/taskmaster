@@ -10,6 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Microsoft Authentication Library -->
     <script src="https://alcdn.msauth.net/browser/2.38.4/js/msal-browser.min.js"></script>
 </head>
@@ -248,10 +252,29 @@
             <!-- Export Section -->
             <div class="export-section">
                 <h3>Export Data</h3>
-                <button class="btn btn-outline" id="export-excel-btn">
-                    <i data-lucide="download"></i>
-                    Export to Excel
-                </button>
+                <div class="export-dropdown">
+                    <button class="btn btn-outline export-toggle" id="export-toggle">
+                        <i data-lucide="download"></i>
+                        Export
+                        <i data-lucide="chevron-down" class="dropdown-arrow"></i>
+                    </button>
+                    <div class="export-panel hidden" id="export-panel">
+                        <button class="export-option" id="export-excel-btn">
+                            <i data-lucide="file-spreadsheet"></i>
+                            <div class="export-option-content">
+                                <span class="export-title">Excel Report</span>
+                                <span class="export-description">Detailed spreadsheet with multiple sheets</span>
+                            </div>
+                        </button>
+                        <button class="export-option" id="export-pdf-btn">
+                            <i data-lucide="file-text"></i>
+                            <div class="export-option-content">
+                                <span class="export-title">PDF Report</span>
+                                <span class="export-description">Formal report with charts and analysis</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
             </div>
         </aside>
 

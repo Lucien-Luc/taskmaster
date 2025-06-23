@@ -8,10 +8,46 @@ window.exportManager = {
 
     // Setup export event listeners
     setupExportListeners: function() {
+        // Excel export
         const exportBtn = document.getElementById('export-excel-btn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
                 this.exportCurrentView();
+            });
+        }
+
+        // PDF export
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', () => {
+                this.exportPDFReport();
+            });
+        }
+
+        // Export dropdown toggle
+        const exportToggle = document.getElementById('export-toggle');
+        const exportPanel = document.getElementById('export-panel');
+        
+        if (exportToggle && exportPanel) {
+            exportToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = exportPanel.classList.contains('hidden');
+                
+                if (isHidden) {
+                    exportPanel.classList.remove('hidden');
+                    exportToggle.classList.add('active');
+                } else {
+                    exportPanel.classList.add('hidden');
+                    exportToggle.classList.remove('active');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!exportToggle.contains(e.target) && !exportPanel.contains(e.target)) {
+                    exportPanel.classList.add('hidden');
+                    exportToggle.classList.remove('active');
+                }
             });
         }
     },
@@ -795,6 +831,540 @@ window.exportManager = {
             'completed': '100%'
         };
         return progressMap[status] || '0%';
+    },
+
+    // Export comprehensive PDF report with charts and formal formatting
+    exportPDFReport: async function() {
+        if (!window.taskViews) {
+            window.showNotification('Export functionality not available', 'error');
+            return;
+        }
+
+        try {
+            window.showNotification('Generating PDF report with charts...', 'info');
+            
+            // Get current view data (filtered)
+            const viewData = window.taskViews.getCurrentViewData();
+            
+            if (viewData.tasks.length === 0) {
+                window.showNotification('No data to export in current view', 'warning');
+                return;
+            }
+
+            // Create PDF with formal report structure
+            await this.generateFormalPDFReport(viewData);
+            
+        } catch (error) {
+            console.error('PDF Export error:', error);
+            window.showNotification('Error generating PDF report', 'error');
+        }
+    },
+
+    // Generate formal PDF report with charts and detailed analysis
+    generateFormalPDFReport: async function(viewData) {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Constants for layout
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const margin = 20;
+        const contentWidth = pageWidth - (2 * margin);
+        let yPosition = margin;
+
+        // Load and add logo
+        try {
+            const logoImg = await this.loadImage('./logo.png');
+            
+            // Add header with logo on every page
+            const addHeader = () => {
+                // Logo
+                pdf.addImage(logoImg, 'PNG', margin, 10, 30, 15);
+                
+                // Company header
+                pdf.setFontSize(16);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(0, 114, 141); // #00728d
+                pdf.text('M&E Task Management System', margin + 35, 18);
+                
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Comprehensive Task Analysis Report', margin + 35, 24);
+                
+                // Header line
+                pdf.setLineWidth(0.5);
+                pdf.setDrawColor(0, 114, 141);
+                pdf.line(margin, 30, pageWidth - margin, 30);
+                
+                return 40; // Return Y position after header
+            };
+
+            // Add footer
+            const addFooter = (pageNum) => {
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(100, 100, 100);
+                
+                // Footer line
+                pdf.setLineWidth(0.3);
+                pdf.setDrawColor(200, 200, 200);
+                pdf.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+                
+                // Footer text
+                const footerText = `Generated on ${new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })} at ${new Date().toLocaleTimeString('en-US')}`;
+                pdf.text(footerText, margin, pageHeight - 12);
+                
+                // Page number
+                pdf.text(`Page ${pageNum}`, pageWidth - margin - 15, pageHeight - 12);
+                
+                // Logo in footer
+                pdf.addImage(logoImg, 'PNG', pageWidth - margin - 25, pageHeight - 18, 10, 5);
+            };
+
+            // Initialize first page
+            yPosition = addHeader();
+            
+            // Title and report info
+            pdf.setFontSize(20);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text('Task Management Report', margin, yPosition);
+            yPosition += 15;
+            
+            // Report metadata
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(60, 60, 60);
+            
+            const reportInfo = [
+                `Report Period: ${viewData.period}`,
+                `Report Type: ${viewData.type.charAt(0).toUpperCase() + viewData.type.slice(1)}`,
+                `Total Records: ${viewData.tasks.length}`,
+                `Filter Status: ${this.getFilterSummary()}`
+            ];
+            
+            reportInfo.forEach(info => {
+                pdf.text(info, margin, yPosition);
+                yPosition += 6;
+            });
+            
+            yPosition += 10;
+
+            // Executive Summary
+            await this.addExecutiveSummary(pdf, viewData, yPosition, contentWidth, margin);
+            
+            // Check if we need a new page
+            if (yPosition > pageHeight - 80) {
+                pdf.addPage();
+                yPosition = addHeader();
+            }
+
+            // Add charts section
+            yPosition = await this.addChartsSection(pdf, viewData, yPosition, contentWidth, margin);
+            
+            // Add detailed analysis
+            yPosition = await this.addDetailedAnalysis(pdf, viewData, yPosition, contentWidth, margin);
+            
+            // Add task listings
+            yPosition = await this.addTaskListings(pdf, viewData, yPosition, contentWidth, margin);
+            
+            // Add recommendations
+            yPosition = await this.addRecommendations(pdf, viewData, yPosition, contentWidth, margin);
+            
+            // Add footer to all pages
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                addFooter(i);
+            }
+            
+            // Generate filename and save
+            const timestamp = new Date().toISOString().split('T')[0];
+            const viewType = viewData.type.charAt(0).toUpperCase() + viewData.type.slice(1);
+            const filename = `TaskReport_${viewType}_${viewData.period.replace(/[^\w\s-]/g, '')}_${timestamp}.pdf`;
+            
+            pdf.save(filename);
+            window.showNotification(`Comprehensive PDF report generated: ${filename}`, 'success');
+            
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            window.showNotification('Error generating PDF report', 'error');
+        }
+    },
+
+    // Load image helper function
+    loadImage: function(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+                // Fallback if logo can't be loaded
+                console.warn('Logo could not be loaded, continuing without it');
+                resolve(null);
+            };
+            img.src = src;
+        });
+    },
+
+    // Get filter summary for report
+    getFilterSummary: function() {
+        const filterInfo = this.getCurrentFilterInfo();
+        if (filterInfo.length === 1 && filterInfo[0].value === 'None - Showing All Data') {
+            return 'No filters applied - Complete dataset';
+        }
+        return `${filterInfo.length} filter(s) applied`;
+    },
+
+    // Add executive summary section
+    addExecutiveSummary: async function(pdf, viewData, startY, contentWidth, margin) {
+        let yPosition = startY + 10;
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 114, 141);
+        pdf.text('Executive Summary', margin, yPosition);
+        yPosition += 10;
+        
+        const analytics = this.calculateDetailedAnalytics(viewData.tasks);
+        
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(40, 40, 40);
+        
+        const summaryText = [
+            `This report analyzes ${analytics.total} tasks from the ${viewData.type} view covering ${viewData.period}.`,
+            `Key findings show a ${analytics.completionRate}% completion rate with ${analytics.overdue} overdue tasks.`,
+            `${analytics.inProgress} tasks are currently in progress, while ${analytics.blocked} tasks are blocked and require attention.`,
+            `The workload distribution shows ${Object.keys(analytics.byUser).length} active team members with varying task assignments.`,
+            `Priority analysis reveals ${analytics.byPriority.urgent || 0} urgent and ${analytics.byPriority.high || 0} high-priority tasks requiring immediate focus.`
+        ];
+        
+        summaryText.forEach(line => {
+            const splitText = pdf.splitTextToSize(line, contentWidth);
+            pdf.text(splitText, margin, yPosition);
+            yPosition += splitText.length * 5;
+        });
+        
+        return yPosition + 10;
+    },
+
+    // Add charts section with visual analytics
+    addChartsSection: async function(pdf, viewData, startY, contentWidth, margin) {
+        let yPosition = startY + 15;
+        
+        // Check if new page needed
+        if (yPosition > 200) {
+            pdf.addPage();
+            yPosition = 50; // After header space
+        }
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 114, 141);
+        pdf.text('Data Visualization & Analytics', margin, yPosition);
+        yPosition += 15;
+        
+        const analytics = this.calculateDetailedAnalytics(viewData.tasks);
+        
+        // Create canvas for charts
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        
+        // Status Distribution Chart
+        const statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'In Progress', 'To Do', 'Blocked', 'Paused'],
+                datasets: [{
+                    data: [
+                        analytics.completed,
+                        analytics.inProgress,
+                        analytics.todo,
+                        analytics.blocked,
+                        analytics.paused
+                    ],
+                    backgroundColor: [
+                        '#10B981', // Green for completed
+                        '#3B82F6', // Blue for in progress
+                        '#6B7280', // Gray for todo
+                        '#EF4444', // Red for blocked
+                        '#8B5CF6'  // Purple for paused
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            font: { size: 12 }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Task Status Distribution',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                }
+            }
+        });
+        
+        // Wait for chart to render
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Convert chart to image and add to PDF
+        const chartImage = canvas.toDataURL('image/png');
+        pdf.addImage(chartImage, 'PNG', margin, yPosition, 80, 60);
+        
+        // Priority Distribution Chart
+        canvas.width = 400;
+        canvas.height = 300;
+        
+        const priorityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Urgent'],
+                datasets: [{
+                    label: 'Number of Tasks',
+                    data: [
+                        analytics.byPriority.low || 0,
+                        analytics.byPriority.medium || 0,
+                        analytics.byPriority.high || 0,
+                        analytics.byPriority.urgent || 0
+                    ],
+                    backgroundColor: [
+                        '#10B981', // Green for low
+                        '#F59E0B', // Yellow for medium
+                        '#F97316', // Orange for high
+                        '#EF4444'  // Red for urgent
+                    ],
+                    borderWidth: 1,
+                    borderColor: '#374151'
+                }]
+            },
+            options: {
+                responsive: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Priority Distribution',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const priorityImage = canvas.toDataURL('image/png');
+        pdf.addImage(priorityImage, 'PNG', margin + 90, yPosition, 80, 60);
+        
+        // Cleanup
+        statusChart.destroy();
+        priorityChart.destroy();
+        
+        return yPosition + 70;
+    },
+
+    // Add detailed analysis section
+    addDetailedAnalysis: async function(pdf, viewData, startY, contentWidth, margin) {
+        let yPosition = startY + 15;
+        
+        // Check if new page needed
+        if (yPosition > 220) {
+            pdf.addPage();
+            yPosition = 50;
+        }
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 114, 141);
+        pdf.text('Detailed Analysis', margin, yPosition);
+        yPosition += 15;
+        
+        const analytics = this.calculateDetailedAnalytics(viewData.tasks);
+        
+        // Performance metrics table
+        const tableData = [
+            ['Metric', 'Value', 'Analysis'],
+            ['Total Tasks', analytics.total.toString(), 'Overall workload volume'],
+            ['Completion Rate', `${analytics.completionRate}%`, analytics.completionRate >= 70 ? 'Good performance' : 'Needs improvement'],
+            ['Overdue Tasks', analytics.overdue.toString(), analytics.overdue > 0 ? 'Requires attention' : 'On track'],
+            ['Blocked Tasks', analytics.blocked.toString(), analytics.blocked > 0 ? 'Process bottlenecks identified' : 'Smooth workflow'],
+            ['Due This Week', analytics.dueThisWeek.toString(), 'Immediate priority items'],
+            ['Due Next Week', analytics.dueNextWeek.toString(), 'Short-term planning items']
+        ];
+        
+        // Draw table
+        pdf.setFontSize(10);
+        const colWidths = [50, 30, 80];
+        const rowHeight = 8;
+        
+        tableData.forEach((row, index) => {
+            let xPos = margin;
+            
+            if (index === 0) {
+                // Header row
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFillColor(0, 114, 141);
+                pdf.setTextColor(255, 255, 255);
+                pdf.rect(margin, yPosition - 2, contentWidth, rowHeight, 'F');
+            } else {
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(40, 40, 40);
+                if (index % 2 === 0) {
+                    pdf.setFillColor(248, 249, 250);
+                    pdf.rect(margin, yPosition - 2, contentWidth, rowHeight, 'F');
+                }
+            }
+            
+            row.forEach((cell, colIndex) => {
+                pdf.text(cell, xPos + 2, yPosition + 3);
+                xPos += colWidths[colIndex];
+            });
+            
+            yPosition += rowHeight;
+        });
+        
+        return yPosition + 15;
+    },
+
+    // Add task listings section
+    addTaskListings: async function(pdf, viewData, startY, contentWidth, margin) {
+        let yPosition = startY + 15;
+        
+        // Check if new page needed
+        if (yPosition > 220) {
+            pdf.addPage();
+            yPosition = 50;
+        }
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 114, 141);
+        pdf.text('Task Listings', margin, yPosition);
+        yPosition += 15;
+        
+        // Group tasks by priority for better organization
+        const tasksByPriority = {
+            urgent: viewData.tasks.filter(t => t.priority === 'urgent'),
+            high: viewData.tasks.filter(t => t.priority === 'high'),
+            medium: viewData.tasks.filter(t => t.priority === 'medium'),
+            low: viewData.tasks.filter(t => t.priority === 'low')
+        };
+        
+        Object.entries(tasksByPriority).forEach(([priority, tasks]) => {
+            if (tasks.length === 0) return;
+            
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(`${priority.toUpperCase()} Priority Tasks (${tasks.length})`, margin, yPosition);
+            yPosition += 8;
+            
+            tasks.slice(0, 10).forEach(task => { // Limit to 10 tasks per priority
+                if (yPosition > 270) {
+                    pdf.addPage();
+                    yPosition = 50;
+                }
+                
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(40, 40, 40);
+                
+                const taskText = `• ${task.title} - ${this.formatStatus(task.status)} - Due: ${new Date(task.dueDate).toLocaleDateString()}`;
+                const splitText = pdf.splitTextToSize(taskText, contentWidth - 10);
+                pdf.text(splitText, margin + 5, yPosition);
+                yPosition += splitText.length * 4 + 2;
+            });
+            
+            yPosition += 5;
+        });
+        
+        return yPosition + 10;
+    },
+
+    // Add recommendations section
+    addRecommendations: async function(pdf, viewData, startY, contentWidth, margin) {
+        let yPosition = startY + 15;
+        
+        // Check if new page needed
+        if (yPosition > 200) {
+            pdf.addPage();
+            yPosition = 50;
+        }
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 114, 141);
+        pdf.text('Recommendations & Action Items', margin, yPosition);
+        yPosition += 15;
+        
+        const analytics = this.calculateDetailedAnalytics(viewData.tasks);
+        const recommendations = [];
+        
+        // Generate intelligent recommendations
+        if (analytics.completionRate < 70) {
+            recommendations.push('Focus on improving task completion rates through better resource allocation and timeline management.');
+        }
+        
+        if (analytics.overdue > 0) {
+            recommendations.push(`Address ${analytics.overdue} overdue tasks immediately to prevent project delays.`);
+        }
+        
+        if (analytics.blocked > 0) {
+            recommendations.push(`Resolve ${analytics.blocked} blocked tasks by identifying and removing process bottlenecks.`);
+        }
+        
+        if (analytics.byPriority.urgent > 0) {
+            recommendations.push(`Prioritize ${analytics.byPriority.urgent} urgent tasks for immediate attention.`);
+        }
+        
+        if (analytics.dueThisWeek > 5) {
+            recommendations.push(`Plan for ${analytics.dueThisWeek} tasks due this week - consider resource reallocation if needed.`);
+        }
+        
+        if (recommendations.length === 0) {
+            recommendations.push('Overall task management is performing well. Continue current practices and monitor for any emerging issues.');
+        }
+        
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(40, 40, 40);
+        
+        recommendations.forEach((rec, index) => {
+            if (yPosition > 270) {
+                pdf.addPage();
+                yPosition = 50;
+            }
+            
+            const bulletText = `${index + 1}. ${rec}`;
+            const splitText = pdf.splitTextToSize(bulletText, contentWidth);
+            pdf.text(splitText, margin, yPosition);
+            yPosition += splitText.length * 5 + 3;
+        });
+        
+        return yPosition + 10;
     },
 
     // Export filtered tasks (for custom exports)
