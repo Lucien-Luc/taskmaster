@@ -463,11 +463,19 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             window.microsoftGraphIntegration = MicrosoftGraphIntegration;
-            MicrosoftGraphIntegration.init();
+            try {
+                MicrosoftGraphIntegration.init();
+            } catch (error) {
+                console.log('Microsoft Graph initialization skipped:', error.message);
+            }
         });
     } else {
         window.microsoftGraphIntegration = MicrosoftGraphIntegration;
-        MicrosoftGraphIntegration.init();
+        try {
+            MicrosoftGraphIntegration.init();
+        } catch (error) {
+            console.log('Microsoft Graph initialization skipped:', error.message);
+        }
     }
 
 })();

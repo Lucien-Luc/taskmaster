@@ -71,13 +71,15 @@ window.taskViews = {
 
     // Setup filters dropdown functionality
     setupFiltersDropdown: function() {
-        const filtersToggle = document.getElementById('filters-toggle');
-        const filtersPanel = document.getElementById('filters-panel');
-        const clearFilters = document.getElementById('clear-filters');
-        const applyFilters = document.getElementById('apply-filters');
-
-        if (filtersToggle && filtersPanel) {
-            filtersToggle.addEventListener('click', (e) => {
+        // Add small delay to ensure DOM is fully loaded
+        setTimeout(() => {
+            const filtersToggle = document.getElementById('filters-toggle');
+            const filtersPanel = document.getElementById('filters-panel');
+            const clearFilters = document.getElementById('clear-filters');
+            const applyFilters = document.getElementById('apply-filters');
+            
+            if (filtersToggle && filtersPanel) {
+                filtersToggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isOpen = !filtersPanel.classList.contains('hidden');
                 
@@ -90,16 +92,16 @@ window.taskViews = {
                 }
             });
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!filtersToggle.contains(e.target) && !filtersPanel.contains(e.target)) {
-                    filtersPanel.classList.add('hidden');
-                    filtersToggle.classList.remove('active');
-                }
-            });
-        }
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!filtersToggle.contains(e.target) && !filtersPanel.contains(e.target)) {
+                        filtersPanel.classList.add('hidden');
+                        filtersToggle.classList.remove('active');
+                    }
+                });
+            }
 
-        if (clearFilters) {
+            if (clearFilters) {
             clearFilters.addEventListener('click', () => {
                 // Clear all filter values
                 document.getElementById('filter-user').value = '';
@@ -127,9 +129,9 @@ window.taskViews = {
                     window.showNotification('All filters cleared', 'info');
                 }
             });
-        }
+            }
 
-        if (applyFilters) {
+            if (applyFilters) {
             applyFilters.addEventListener('click', () => {
                 // Close the dropdown
                 filtersPanel.classList.add('hidden');
@@ -140,7 +142,8 @@ window.taskViews = {
                     window.showNotification('Filters applied', 'success');
                 }
             });
-        }
+            }
+        }, 100); // Small delay to ensure DOM is ready
     },
 
     // Setup view-specific event handlers
