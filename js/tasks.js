@@ -919,12 +919,19 @@ window.taskManager = {
                 return taskDate.toDateString() === currentDay.toDateString();
             });
             
+            // Make calendar day a drop zone
+            dayElement.dataset.date = currentDay.toISOString().split('T')[0];
+            this.setupCalendarDropZone(dayElement);
+
             // Create day content
             dayElement.innerHTML = `
                 <div class="day-number">${currentDay.getDate()}</div>
                 <div class="day-tasks">
                     ${dayTasks.map(task => `
-                        <div class="calendar-task" data-task-id="${task.id}" title="${task.title}">
+                        <div class="calendar-task ${task.priority ? 'priority-' + task.priority : ''} ${task.status ? 'status-' + task.status : ''}" 
+                             data-task-id="${task.id}" 
+                             title="${task.title}"
+                             draggable="true">
                             ${task.title}
                         </div>
                     `).join('')}
@@ -934,9 +941,10 @@ window.taskManager = {
             calendarDays.appendChild(dayElement);
         }
         
-        // Add click listeners for calendar tasks
+        // Add click and drag listeners for calendar tasks
         const calendarTasks = calendarDays.querySelectorAll('.calendar-task');
         calendarTasks.forEach(taskElement => {
+            // Click handler
             taskElement.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const taskId = e.target.dataset.taskId;
@@ -945,9 +953,98 @@ window.taskManager = {
                     this.showTaskDetails(task);
                 }
             });
+            
+            // Drag handlers
+            this.setupCalendarTaskDrag(taskElement);
         });
     },
     
+    // Setup drag and drop for calendar tasks
+    setupCalendarTaskDrag: function(taskElement) {
+        taskElement.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+            e.dataTransfer.effectAllowed = 'move';
+            e.target.style.opacity = '0.5';
+        });
+        
+        taskElement.addEventListener('dragend', (e) => {
+            e.target.style.opacity = '';
+        });
+    },
+    
+    // Setup drop zone for calendar days
+    setupCalendarDropZone: function(dayElement) {
+        dayElement.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            dayElement.classList.add('calendar-drop-active');
+        });
+        
+        dayElement.addEventListener('dragleave', (e) => {
+            if (!dayElement.contains(e.relatedTarget)) {
+                dayElement.classList.remove('calendar-drop-active');
+            }
+        });
+        
+        dayElement.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dayElement.classList.remove('calendar-drop-active');
+            
+            const taskId = e.dataTransfer.getData('text/plain');
+            const newDate = dayElement.dataset.date;
+            
+            if (taskId && newDate) {
+                this.updateTaskDate(taskId, newDate);
+            }
+        });
+    },
+    
+    // Update task due date
+    updateTaskDate: async function(taskId, newDateString) {
+        try {
+            const task = this.tasks.find(t => t.id === taskId);
+            if (!task) {
+                throw new Error('Task not found');
+            }
+            
+            // Check if user can modify this task
+            const currentUser = window.auth?.currentUser;
+            if (window.auth?.isBlocked && task) {
+                const canMove = window.overdueManager?.canUserMoveBlockedTask(task, currentUser, task.status);
+                if (!canMove) {
+                    window.showNotification('Cannot move this task while account is blocked', 'error');
+                    return;
+                }
+            }
+            
+            const newDate = new Date(newDateString + 'T00:00:00');
+            const oldDate = new Date(task.dueDate);
+            
+            // Update task in Firestore
+            const taskRef = doc(window.db, 'tasks', taskId);
+            const updateData = {
+                dueDate: newDate,
+                updatedAt: new Date(),
+                updatedBy: currentUser
+            };
+            
+            await updateDoc(taskRef, updateData);
+            
+            // Show success notification
+            const formatDate = (date) => date.toLocaleDateString();
+            window.showNotification(
+                `Task "${task.title}" moved from ${formatDate(oldDate)} to ${formatDate(newDate)}`, 
+                'success'
+            );
+            
+            console.log('Task date updated:', taskId, newDateString);
+            
+        } catch (error) {
+            console.error('Error updating task date:', error);
+            window.showNotification(`Error moving task: ${error.message}`, 'error');
+        }
+    },
+
     // Update task statistics
     updateTaskStats: function() {
         const filteredTasks = this.getFilteredTasks();

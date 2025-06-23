@@ -1214,6 +1214,39 @@ body {
     50% { opacity: 0.7; }
 }
 
+/* Calendar drag and drop styling for light theme */
+.calendar-task[draggable="true"] {
+    cursor: grab;
+}
+
+.calendar-task[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.calendar-day.calendar-drop-active {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border: 2px dashed rgba(59, 130, 246, 0.4) !important;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+}
+
+.calendar-day.calendar-drop-active::before {
+    content: "Drop task here";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 10;
+}
+
 /* Navigation buttons */
 .nav-btn {
     background: rgba(255, 255, 255, 0.8);

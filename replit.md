@@ -139,6 +139,10 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 23, 2025: Implemented theme toggle functionality with local storage persistence
 - June 23, 2025: Positioned theme toggle button in bottom-right corner to avoid UI conflicts
 - June 23, 2025: Enhanced white theme with improved contrast and readability
+- June 23, 2025: Fixed calendar layout with proper text wrapping and column alignment
+- June 23, 2025: Added priority-based color coding and status indicators for calendar tasks
+- June 23, 2025: Implemented comprehensive drag and drop functionality for calendar task date management
+- June 23, 2025: Enhanced report sections CSS styling for weekly, monthly, quarterly, and annual views
 
 ## Theme System
 The application now supports two glassmorphic themes:
