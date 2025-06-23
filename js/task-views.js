@@ -239,8 +239,12 @@ window.taskViews = {
         if (window.taskManager) {
             if (!window.taskManager.currentWeekDate) {
                 window.taskManager.currentWeekDate = new Date();
+                console.log('Initialized week navigation:', window.taskManager.currentWeekDate.toLocaleDateString());
             }
+            
+            console.log('Before week navigation:', window.taskManager.currentWeekDate.toLocaleDateString(), 'Direction:', direction);
             window.taskManager.currentWeekDate.setDate(window.taskManager.currentWeekDate.getDate() + (direction * 7));
+            console.log('After week navigation:', window.taskManager.currentWeekDate.toLocaleDateString());
             this.renderWeeklyView();
         }
     },
@@ -249,8 +253,12 @@ window.taskViews = {
         if (window.taskManager) {
             if (!window.taskManager.currentDate) {
                 window.taskManager.currentDate = new Date();
+                console.log('Initialized month navigation:', window.taskManager.currentDate.toLocaleDateString());
             }
+            
+            console.log('Before month navigation:', window.taskManager.currentDate.toLocaleDateString(), 'Direction:', direction);
             window.taskManager.currentDate.setMonth(window.taskManager.currentDate.getMonth() + direction);
+            console.log('After month navigation:', window.taskManager.currentDate.toLocaleDateString());
             this.renderMonthlyView();
         }
     },
@@ -262,7 +270,10 @@ window.taskViews = {
                 const now = new Date();
                 window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
                 window.taskManager.currentYear = now.getFullYear();
+                console.log('Initialized quarter navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`);
             }
+            
+            console.log('Before navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`, 'Direction:', direction);
             
             window.taskManager.currentQuarter += direction;
             if (window.taskManager.currentQuarter < 1) {
@@ -272,6 +283,8 @@ window.taskViews = {
                 window.taskManager.currentQuarter = 1;
                 window.taskManager.currentYear++;
             }
+            
+            console.log('After navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`);
             this.renderQuarterlyView();
         }
     },
