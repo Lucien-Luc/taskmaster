@@ -8,48 +8,75 @@ window.exportManager = {
 
     // Setup export event listeners
     setupExportListeners: function() {
-        // Excel export
-        const exportBtn = document.getElementById('export-excel-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportCurrentView();
-            });
-        }
+        // Setup export dropdown using the same pattern as filters
+        this.setupExportDropdown();
+    },
 
-        // PDF export
-        const exportPdfBtn = document.getElementById('export-pdf-btn');
-        if (exportPdfBtn) {
-            exportPdfBtn.addEventListener('click', () => {
-                this.exportPDFReport();
-            });
-        }
-
-        // Export dropdown toggle
-        const exportToggle = document.getElementById('export-toggle');
-        const exportPanel = document.getElementById('export-panel');
-        
-        if (exportToggle && exportPanel) {
-            exportToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isHidden = exportPanel.classList.contains('hidden');
+    // Setup export dropdown functionality
+    setupExportDropdown: function() {
+        const initDropdown = () => {
+            const exportToggle = document.getElementById('export-toggle');
+            const exportPanel = document.getElementById('export-panel');
+            
+            if (exportToggle && exportPanel) {
+                // Remove any existing listeners to prevent conflicts
+                const newToggle = exportToggle.cloneNode(true);
+                exportToggle.parentNode.replaceChild(newToggle, exportToggle);
                 
-                if (isHidden) {
-                    exportPanel.classList.remove('hidden');
-                    exportToggle.classList.add('active');
-                } else {
-                    exportPanel.classList.add('hidden');
-                    exportToggle.classList.remove('active');
-                }
-            });
+                newToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const isHidden = exportPanel.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        exportPanel.classList.remove('hidden');
+                        newToggle.classList.add('active');
+                    } else {
+                        exportPanel.classList.add('hidden');
+                        newToggle.classList.remove('active');
+                    }
+                });
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!exportToggle.contains(e.target) && !exportPanel.contains(e.target)) {
-                    exportPanel.classList.add('hidden');
-                    exportToggle.classList.remove('active');
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!newToggle.contains(e.target) && !exportPanel.contains(e.target)) {
+                        exportPanel.classList.add('hidden');
+                        newToggle.classList.remove('active');
+                    }
+                });
+
+                // Re-setup export option listeners after cloning
+                const exportExcelBtn = exportPanel.querySelector('#export-excel-btn');
+                const exportPdfBtn = exportPanel.querySelector('#export-pdf-btn');
+                
+                if (exportExcelBtn) {
+                    exportExcelBtn.addEventListener('click', () => {
+                        exportPanel.classList.add('hidden');
+                        newToggle.classList.remove('active');
+                        window.exportManager.exportCurrentView();
+                    });
                 }
-            });
+                
+                if (exportPdfBtn) {
+                    exportPdfBtn.addEventListener('click', () => {
+                        exportPanel.classList.add('hidden');
+                        newToggle.classList.remove('active');
+                        window.exportManager.exportPDFReport();
+                    });
+                }
+            }
+        };
+
+        // Try immediate setup and also on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDropdown);
+        } else {
+            initDropdown();
         }
+        
+        // Also try with a delay as fallback
+        setTimeout(initDropdown, 500);
     },
 
     // Export current view data to Excel with enhanced formatting
