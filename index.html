@@ -147,41 +147,6 @@
                 </div>
             </div>
 
-            <!-- Outlook Integration Section -->
-            <div class="outlook-section glass-light">
-                <div class="outlook-header">
-                    <h3>Microsoft Outlook</h3>
-                    <div class="outlook-status" id="outlook-status">
-                        <span class="status-dot disconnected"></span>
-                        <span class="status-text">Disconnected</span>
-                    </div>
-                </div>
-                <div class="outlook-actions">
-                    <button class="btn btn-sm btn-primary hidden" id="connect-outlook-btn">
-                        <i data-lucide="calendar"></i>
-                        Connect Calendar
-                    </button>
-                    <button class="btn btn-sm btn-outline hidden" id="sync-outlook-btn">
-                        <i data-lucide="refresh-cw"></i>
-                        Sync Events
-                    </button>
-                    <button class="btn btn-sm btn-outline hidden" id="disconnect-outlook-btn">
-                        <i data-lucide="x"></i>
-                        Disconnect
-                    </button>
-                </div>
-                <div class="outlook-setup hidden" id="outlook-setup">
-                    <div class="setup-message">
-                        <p>To connect your Outlook calendar, please provide your Microsoft Graph API Client ID:</p>
-                        <div class="form-group">
-                            <input type="text" id="microsoft-client-id" placeholder="Microsoft Graph Client ID" class="form-control">
-                            <button class="btn btn-sm btn-primary" id="save-client-id-btn">Save</button>
-                        </div>
-                        <small>Get your Client ID from the <a href="https://portal.azure.com/" target="_blank">Azure Portal</a></small>
-                    </div>
-                </div>
-            </div>
-
             <!-- Task Actions -->
             <div class="task-actions">
                 <button class="btn btn-primary" id="create-task-btn">
@@ -552,14 +517,12 @@
 
     <!-- Firebase SDK -->
     <script src="js/theme-manager.js"></script>
-    <script type="module" src="js/notification-manager.js"></script>
     <script type="module" src="js/firebase-config.js"></script>
     <script type="module" src="js/users.js"></script>
     <script type="module" src="js/overdue-manager.js"></script>
     <script type="module" src="js/kanban.js"></script>
     <script type="module" src="js/export-manager.js"></script>
     <script type="module" src="js/task-views.js"></script>
-    <script type="module" src="js/outlook-integration.js"></script>
     <script type="module" src="js/profile.js"></script>
     <script type="module" src="js/tasks.js"></script>
 </body>

@@ -143,11 +143,6 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 23, 2025: Added priority-based color coding and status indicators for calendar tasks
 - June 23, 2025: Implemented comprehensive drag and drop functionality for calendar task date management
 - June 23, 2025: Enhanced report sections CSS styling for weekly, monthly, quarterly, and annual views
-- June 23, 2025: Integrated Microsoft Outlook calendar sync with one-way event import
-- June 23, 2025: Added Microsoft Graph API authentication with OAuth flow
-- June 23, 2025: Implemented automatic conversion of Outlook events to tasks with meeting details
-- June 23, 2025: Added Outlook integration UI panel in sidebar with connection status
-- June 23, 2025: Created notification manager for user feedback and status updates
 
 ## Theme System
 The application now supports two glassmorphic themes:
