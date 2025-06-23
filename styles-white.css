@@ -827,6 +827,97 @@ body {
     color: rgba(55, 65, 81, 0.6);
 }
 
+/* Microsoft 365 Integration Styling for White Theme */
+.outlook-control-panel {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.panel-header h3 {
+    color: #374151 !important;
+}
+
+.panel-header .settings-btn {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #374151 !important;
+}
+
+.panel-header .settings-btn:hover {
+    background: rgba(0, 0, 0, 0.1) !important;
+    color: #1f2937 !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.connection-status {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+.control-buttons .btn {
+    border-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Modal styling for white theme */
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.modal-header {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.modal-header h2 {
+    color: #374151 !important;
+}
+
+.modal-header .close-btn {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #374151 !important;
+}
+
+.modal-header .close-btn:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #ef4444 !important;
+}
+
+.settings-section h3 {
+    color: #374151 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.form-group label {
+    color: #4b5563 !important;
+}
+
+.form-control {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    color: #374151 !important;
+}
+
+.form-control:focus {
+    border-color: #00b4d8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 180, 216, 0.2) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.checkbox-group label {
+    color: #4b5563 !important;
+}
+
+.modal-footer {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
 /* Main Content */
 .main-content {
     flex: 1;

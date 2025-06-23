@@ -6,7 +6,8 @@ window.taskViews = {
         category: '',
         status: '',
         dateStart: '',
-        dateEnd: ''
+        dateEnd: '',
+        overdue: false
     },
 
     // Initialize view handlers
@@ -112,7 +113,7 @@ window.taskViews = {
             }
 
             if (clearFilters) {
-                clearFilters.addEventListener('click', () => {
+                clearFilters.addEventListener('click', function() {
                     // Clear all filter values
                     document.getElementById('filter-user').value = '';
                     document.getElementById('filter-priority').value = '';
@@ -145,7 +146,7 @@ window.taskViews = {
             // Overdue filter button
             const overdueFilter = document.getElementById('filter-overdue');
             if (overdueFilter) {
-                overdueFilter.addEventListener('click', () => {
+                overdueFilter.addEventListener('click', function() {
                     // Clear other filters and show only overdue tasks
                     document.getElementById('filter-user').value = '';
                     document.getElementById('filter-priority').value = '';
@@ -175,11 +176,11 @@ window.taskViews = {
                     if (window.showNotification) {
                         window.showNotification('Showing overdue tasks only', 'warning');
                     }
-                }.bind(this));
+                });
             }
 
             if (applyFilters) {
-                applyFilters.addEventListener('click', () => {
+                applyFilters.addEventListener('click', function() {
                     // Close the dropdown
                     filtersPanel.classList.add('hidden');
                     const toggle = document.getElementById('filters-toggle');
@@ -192,7 +193,7 @@ window.taskViews = {
                     if (window.showNotification) {
                         window.showNotification('Filters applied', 'success');
                     }
-                }.bind(this));
+                });
             }
         };
         

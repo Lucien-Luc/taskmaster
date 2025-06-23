@@ -290,6 +290,30 @@
                     'font-weight: 600;' +
                     'color: #ffffff;' +
                 '}' +
+                '.panel-header .settings-btn {' +
+                    'width: 36px;' +
+                    'height: 36px;' +
+                    'padding: 8px;' +
+                    'background: rgba(255, 255, 255, 0.1);' +
+                    'border: 1px solid rgba(255, 255, 255, 0.2);' +
+                    'border-radius: 8px;' +
+                    'color: rgba(255, 255, 255, 0.8);' +
+                    'cursor: pointer;' +
+                    'transition: all 0.2s ease;' +
+                    'display: flex;' +
+                    'align-items: center;' +
+                    'justify-content: center;' +
+                '}' +
+                '.panel-header .settings-btn:hover {' +
+                    'background: rgba(255, 255, 255, 0.2);' +
+                    'color: #ffffff;' +
+                    'transform: translateY(-1px);' +
+                    'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);' +
+                '}' +
+                '.panel-header .settings-btn i {' +
+                    'width: 16px;' +
+                    'height: 16px;' +
+                '}' +
                 '.connection-status {' +
                     'display: flex;' +
                     'align-items: center;' +
@@ -347,6 +371,131 @@
                 '}' +
                 '.spin {' +
                     'animation: spin 1s linear infinite;' +
+                '}' +
+                '.modal-overlay {' +
+                    'position: fixed;' +
+                    'top: 0;' +
+                    'left: 0;' +
+                    'right: 0;' +
+                    'bottom: 0;' +
+                    'background: rgba(0, 0, 0, 0.7);' +
+                    'backdrop-filter: blur(8px);' +
+                    'z-index: 10000;' +
+                    'display: flex;' +
+                    'align-items: center;' +
+                    'justify-content: center;' +
+                    'padding: 20px;' +
+                '}' +
+                '.modal {' +
+                    'background: rgba(0, 0, 0, 0.9);' +
+                    'backdrop-filter: blur(20px);' +
+                    'border: 1px solid rgba(255, 255, 255, 0.2);' +
+                    'border-radius: 16px;' +
+                    'padding: 0;' +
+                    'max-width: 600px;' +
+                    'width: 100%;' +
+                    'max-height: 80vh;' +
+                    'overflow: hidden;' +
+                    'box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);' +
+                '}' +
+                '.modal-header {' +
+                    'display: flex;' +
+                    'justify-content: space-between;' +
+                    'align-items: center;' +
+                    'padding: 24px;' +
+                    'border-bottom: 1px solid rgba(255, 255, 255, 0.1);' +
+                    'background: rgba(255, 255, 255, 0.05);' +
+                '}' +
+                '.modal-header h2 {' +
+                    'margin: 0;' +
+                    'color: #ffffff;' +
+                    'font-size: 20px;' +
+                    'font-weight: 600;' +
+                '}' +
+                '.modal-header .close-btn {' +
+                    'width: 32px;' +
+                    'height: 32px;' +
+                    'padding: 6px;' +
+                    'background: rgba(255, 255, 255, 0.1);' +
+                    'border: 1px solid rgba(255, 255, 255, 0.2);' +
+                    'border-radius: 6px;' +
+                    'color: rgba(255, 255, 255, 0.8);' +
+                    'cursor: pointer;' +
+                    'transition: all 0.2s ease;' +
+                    'display: flex;' +
+                    'align-items: center;' +
+                    'justify-content: center;' +
+                '}' +
+                '.modal-header .close-btn:hover {' +
+                    'background: rgba(239, 68, 68, 0.2);' +
+                    'border-color: rgba(239, 68, 68, 0.4);' +
+                    'color: #ef4444;' +
+                '}' +
+                '.modal-body {' +
+                    'padding: 24px;' +
+                    'max-height: 60vh;' +
+                    'overflow-y: auto;' +
+                '}' +
+                '.settings-section {' +
+                    'margin-bottom: 24px;' +
+                '}' +
+                '.settings-section h3 {' +
+                    'color: rgba(255, 255, 255, 0.9);' +
+                    'font-size: 16px;' +
+                    'font-weight: 600;' +
+                    'margin: 0 0 16px 0;' +
+                    'padding-bottom: 8px;' +
+                    'border-bottom: 1px solid rgba(255, 255, 255, 0.1);' +
+                '}' +
+                '.form-group {' +
+                    'margin-bottom: 16px;' +
+                '}' +
+                '.form-group label {' +
+                    'display: block;' +
+                    'color: rgba(255, 255, 255, 0.8);' +
+                    'font-size: 14px;' +
+                    'font-weight: 500;' +
+                    'margin-bottom: 6px;' +
+                '}' +
+                '.form-control {' +
+                    'width: 100%;' +
+                    'padding: 10px 12px;' +
+                    'background: rgba(255, 255, 255, 0.1);' +
+                    'border: 1px solid rgba(255, 255, 255, 0.2);' +
+                    'border-radius: 8px;' +
+                    'color: #ffffff;' +
+                    'font-size: 14px;' +
+                    'transition: all 0.2s ease;' +
+                '}' +
+                '.form-control:focus {' +
+                    'outline: none;' +
+                    'border-color: #00b4d8;' +
+                    'box-shadow: 0 0 0 2px rgba(0, 180, 216, 0.2);' +
+                    'background: rgba(255, 255, 255, 0.15);' +
+                '}' +
+                '.checkbox-group {' +
+                    'display: flex;' +
+                    'align-items: center;' +
+                    'gap: 8px;' +
+                    'margin-bottom: 12px;' +
+                '}' +
+                '.checkbox-group input[type="checkbox"] {' +
+                    'width: 16px;' +
+                    'height: 16px;' +
+                    'accent-color: #00b4d8;' +
+                '}' +
+                '.checkbox-group label {' +
+                    'margin: 0;' +
+                    'font-size: 14px;' +
+                    'color: rgba(255, 255, 255, 0.8);' +
+                '}' +
+                '.modal-footer {' +
+                    'padding: 20px 24px;' +
+                    'background: rgba(255, 255, 255, 0.03);' +
+                    'border-top: 1px solid rgba(255, 255, 255, 0.1);' +
+                    'display: flex;' +
+                    'gap: 12px;' +
+                    'justify-content: flex-end;' +
                 '}';
 
             document.head.appendChild(style);
