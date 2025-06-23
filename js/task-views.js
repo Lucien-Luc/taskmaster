@@ -234,71 +234,86 @@ window.taskViews = {
         }
     },
 
-    // Navigation methods
+    // Navigation methods - completely rewritten to prevent skipping
     navigateWeek: function(direction) {
-        if (window.taskManager) {
-            if (!window.taskManager.currentWeekDate) {
-                window.taskManager.currentWeekDate = new Date();
-                console.log('Initialized week navigation:', window.taskManager.currentWeekDate.toLocaleDateString());
-            }
-            
-            console.log('Before week navigation:', window.taskManager.currentWeekDate.toLocaleDateString(), 'Direction:', direction);
-            window.taskManager.currentWeekDate.setDate(window.taskManager.currentWeekDate.getDate() + (direction * 7));
-            console.log('After week navigation:', window.taskManager.currentWeekDate.toLocaleDateString());
-            this.renderWeeklyView();
+        if (!window.taskManager) return;
+        
+        // Get current date or initialize
+        let currentDate = window.taskManager.currentWeekDate;
+        if (!currentDate) {
+            currentDate = new Date();
+            window.taskManager.currentWeekDate = currentDate;
         }
+        
+        // Create new date object to avoid mutation issues
+        const newDate = new Date(currentDate.getTime());
+        newDate.setDate(newDate.getDate() + (direction * 7));
+        
+        // Update the stored date
+        window.taskManager.currentWeekDate = newDate;
+        this.renderWeeklyView();
     },
 
     navigateMonth: function(direction) {
-        if (window.taskManager) {
-            if (!window.taskManager.currentDate) {
-                window.taskManager.currentDate = new Date();
-                console.log('Initialized month navigation:', window.taskManager.currentDate.toLocaleDateString());
-            }
-            
-            console.log('Before month navigation:', window.taskManager.currentDate.toLocaleDateString(), 'Direction:', direction);
-            window.taskManager.currentDate.setMonth(window.taskManager.currentDate.getMonth() + direction);
-            console.log('After month navigation:', window.taskManager.currentDate.toLocaleDateString());
-            this.renderMonthlyView();
+        if (!window.taskManager) return;
+        
+        // Get current date or initialize
+        let currentDate = window.taskManager.currentDate;
+        if (!currentDate) {
+            currentDate = new Date();
+            window.taskManager.currentDate = currentDate;
         }
+        
+        // Create new date object to avoid mutation issues
+        const newDate = new Date(currentDate.getTime());
+        newDate.setMonth(newDate.getMonth() + direction);
+        
+        // Update the stored date
+        window.taskManager.currentDate = newDate;
+        this.renderMonthlyView();
     },
 
     navigateQuarter: function(direction) {
-        if (window.taskManager) {
-            // Initialize quarter and year if not set
-            if (!window.taskManager.currentQuarter || !window.taskManager.currentYear) {
-                const now = new Date();
-                window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
-                window.taskManager.currentYear = now.getFullYear();
-                console.log('Initialized quarter navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`);
-            }
-            
-            console.log('Before navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`, 'Direction:', direction);
-            
-            window.taskManager.currentQuarter += direction;
-            if (window.taskManager.currentQuarter < 1) {
-                window.taskManager.currentQuarter = 4;
-                window.taskManager.currentYear--;
-            } else if (window.taskManager.currentQuarter > 4) {
-                window.taskManager.currentQuarter = 1;
-                window.taskManager.currentYear++;
-            }
-            
-            console.log('After navigation:', `Q${window.taskManager.currentQuarter} ${window.taskManager.currentYear}`);
-            this.renderQuarterlyView();
+        if (!window.taskManager) return;
+        
+        // Initialize if needed
+        if (typeof window.taskManager.currentQuarter === 'undefined' || typeof window.taskManager.currentYear === 'undefined') {
+            const now = new Date();
+            window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+            window.taskManager.currentYear = now.getFullYear();
         }
+        
+        // Calculate new quarter and year
+        let newQuarter = window.taskManager.currentQuarter + direction;
+        let newYear = window.taskManager.currentYear;
+        
+        // Handle quarter overflow/underflow
+        while (newQuarter < 1) {
+            newQuarter += 4;
+            newYear--;
+        }
+        while (newQuarter > 4) {
+            newQuarter -= 4;
+            newYear++;
+        }
+        
+        // Update stored values
+        window.taskManager.currentQuarter = newQuarter;
+        window.taskManager.currentYear = newYear;
+        this.renderQuarterlyView();
     },
 
     navigateYear: function(direction) {
-        if (window.taskManager) {
-            // Initialize year if not set
-            if (!window.taskManager.currentYear) {
-                window.taskManager.currentYear = new Date().getFullYear();
-            }
-            
-            window.taskManager.currentYear += direction;
-            this.renderAnnualView();
+        if (!window.taskManager) return;
+        
+        // Initialize if needed
+        if (typeof window.taskManager.currentYear === 'undefined') {
+            window.taskManager.currentYear = new Date().getFullYear();
         }
+        
+        // Update year
+        window.taskManager.currentYear += direction;
+        this.renderAnnualView();
     },
 
     // Filter tasks based on current filters
@@ -430,7 +445,7 @@ window.taskViews = {
         const monthlyContainer = document.getElementById('monthly-content');
         if (!window.taskManager) return;
 
-        // Initialize current date if not set
+        // Initialize current date if not set  
         if (!window.taskManager.currentDate) {
             window.taskManager.currentDate = new Date();
         }
@@ -471,7 +486,7 @@ window.taskViews = {
         if (!quarterlyContainer || !window.taskManager) return;
 
         // Initialize current quarter and year if not set
-        if (!window.taskManager.currentQuarter || !window.taskManager.currentYear) {
+        if (typeof window.taskManager.currentQuarter === 'undefined' || typeof window.taskManager.currentYear === 'undefined') {
             const now = new Date();
             window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
             window.taskManager.currentYear = now.getFullYear();
@@ -509,7 +524,7 @@ window.taskViews = {
         if (!annualContainer || !window.taskManager) return;
 
         // Initialize current year if not set
-        if (!window.taskManager.currentYear) {
+        if (typeof window.taskManager.currentYear === 'undefined') {
             window.taskManager.currentYear = new Date().getFullYear();
         }
         const year = window.taskManager.currentYear;
