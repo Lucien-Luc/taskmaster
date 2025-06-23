@@ -176,3 +176,4 @@ The application now supports two glassmorphic themes:
 
 Preferred communication style: Simple, everyday language.
 Theme preference: Dual theme system with toggle functionality.
+Feature request: Microsoft Outlook calendar integration with task synchronization.
