@@ -71,79 +71,115 @@ window.taskViews = {
 
     // Setup filters dropdown functionality
     setupFiltersDropdown: function() {
-        // Add small delay to ensure DOM is fully loaded
-        setTimeout(() => {
+        console.log('Setting up filters dropdown...');
+        
+        // Wait for DOM to be ready
+        const initDropdown = () => {
             const filtersToggle = document.getElementById('filters-toggle');
             const filtersPanel = document.getElementById('filters-panel');
             const clearFilters = document.getElementById('clear-filters');
             const applyFilters = document.getElementById('apply-filters');
             
-            if (filtersToggle && filtersPanel) {
-                filtersToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isOpen = !filtersPanel.classList.contains('hidden');
-                
-                if (isOpen) {
-                    filtersPanel.classList.add('hidden');
-                    filtersToggle.classList.remove('active');
-                } else {
-                    filtersPanel.classList.remove('hidden');
-                    filtersToggle.classList.add('active');
-                }
+            console.log('Dropdown elements:', {
+                toggle: !!filtersToggle,
+                panel: !!filtersPanel,
+                clear: !!clearFilters,
+                apply: !!applyFilters
             });
+            
+            if (filtersToggle && filtersPanel) {
+                console.log('Adding click listener to filters toggle');
+                
+                // Remove any existing listeners
+                const newToggle = filtersToggle.cloneNode(true);
+                filtersToggle.parentNode.replaceChild(newToggle, filtersToggle);
+                
+                newToggle.addEventListener('click', function(e) {
+                    console.log('Filters toggle clicked!');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const isHidden = filtersPanel.classList.contains('hidden');
+                    console.log('Panel is hidden:', isHidden);
+                    
+                    if (isHidden) {
+                        filtersPanel.classList.remove('hidden');
+                        newToggle.classList.add('active');
+                        console.log('Opened filters panel');
+                    } else {
+                        filtersPanel.classList.add('hidden');
+                        newToggle.classList.remove('active');
+                        console.log('Closed filters panel');
+                    }
+                });
 
                 // Close dropdown when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!filtersToggle.contains(e.target) && !filtersPanel.contains(e.target)) {
+                document.addEventListener('click', function(e) {
+                    if (!newToggle.contains(e.target) && !filtersPanel.contains(e.target)) {
                         filtersPanel.classList.add('hidden');
-                        filtersToggle.classList.remove('active');
+                        newToggle.classList.remove('active');
+                    }
+                });
+                
+                console.log('Filters dropdown setup completed');
+            } else {
+                console.error('Required elements not found for filters dropdown');
+            }
+
+            if (clearFilters) {
+                clearFilters.addEventListener('click', () => {
+                    // Clear all filter values
+                    document.getElementById('filter-user').value = '';
+                    document.getElementById('filter-priority').value = '';
+                    document.getElementById('filter-category').value = '';
+                    document.getElementById('filter-status').value = '';
+                    document.getElementById('filter-date-start').value = '';
+                    document.getElementById('filter-date-end').value = '';
+
+                    // Reset filter state
+                    this.currentFilter = {
+                        user: '',
+                        priority: '',
+                        category: '',
+                        status: '',
+                        dateStart: '',
+                        dateEnd: ''
+                    };
+
+                    // Update view
+                    this.updateCurrentView();
+                    
+                    // Show notification
+                    if (window.showNotification) {
+                        window.showNotification('All filters cleared', 'info');
                     }
                 });
             }
 
-            if (clearFilters) {
-            clearFilters.addEventListener('click', () => {
-                // Clear all filter values
-                document.getElementById('filter-user').value = '';
-                document.getElementById('filter-priority').value = '';
-                document.getElementById('filter-category').value = '';
-                document.getElementById('filter-status').value = '';
-                document.getElementById('filter-date-start').value = '';
-                document.getElementById('filter-date-end').value = '';
-
-                // Reset filter state
-                this.currentFilter = {
-                    user: '',
-                    priority: '',
-                    category: '',
-                    status: '',
-                    dateStart: '',
-                    dateEnd: ''
-                };
-
-                // Update view
-                this.updateCurrentView();
-                
-                // Show notification
-                if (window.showNotification) {
-                    window.showNotification('All filters cleared', 'info');
-                }
-            });
-            }
-
             if (applyFilters) {
-            applyFilters.addEventListener('click', () => {
-                // Close the dropdown
-                filtersPanel.classList.add('hidden');
-                filtersToggle.classList.remove('active');
-                
-                // Show notification
-                if (window.showNotification) {
-                    window.showNotification('Filters applied', 'success');
-                }
-            });
+                applyFilters.addEventListener('click', () => {
+                    // Close the dropdown
+                    filtersPanel.classList.add('hidden');
+                    const toggle = document.getElementById('filters-toggle');
+                    if (toggle) toggle.classList.remove('active');
+                    
+                    // Show notification
+                    if (window.showNotification) {
+                        window.showNotification('Filters applied', 'success');
+                    }
+                });
             }
-        }, 100); // Small delay to ensure DOM is ready
+        };
+        
+        // Try immediate setup and also on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDropdown);
+        } else {
+            initDropdown();
+        }
+        
+        // Also try with a delay as fallback
+        setTimeout(initDropdown, 500);
     },
 
     // Setup view-specific event handlers
