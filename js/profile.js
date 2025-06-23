@@ -263,7 +263,7 @@ window.profileManager = {
             window.showNotification('Uploading profile picture...', 'info');
 
             // Update user avatar in Firestore
-            const success = await window.authModule.updateUserAvatar(currentUser, dataUrl);
+            const success = await window.auth.updateUserAvatar(currentUser, dataUrl);
             
             if (success) {
                 // Update UI immediately
@@ -387,7 +387,7 @@ window.profileManager = {
         }
 
         try {
-            const success = await window.authModule.updateUserAvatar(currentUser, '');
+            const success = await window.auth.updateUserAvatar(currentUser, '');
             if (success) {
                 this.updateAvatarDisplay('');
                 window.showNotification('Profile picture reset to default', 'success');

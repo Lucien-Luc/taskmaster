@@ -15,7 +15,9 @@ window.auth = {
     isLoggedIn: () => window.auth.isAuthenticated,
     getUserAvatar: () => window.auth.userAvatar,
     isUserBlocked: () => window.auth.isBlocked,
-    getBlockedReason: () => window.auth.blockedReason
+    getBlockedReason: () => window.auth.blockedReason,
+    // Add updateUserAvatar method reference
+    updateUserAvatar: null
 };
 
 // Authentication functions
@@ -139,20 +141,21 @@ const auth = {
                     return false;
                 }
                 
-                // Get fresh user data to check for blocking status changes
+                // Get fresh user data to check for blocking status changes and latest avatar
                 const userData = await auth.refreshUserData(user);
                 
                 window.auth.currentUser = user;
                 window.auth.isAuthenticated = true;
                 window.auth.userRole = role;
-                window.auth.userAvatar = avatar || '';
+                window.auth.userAvatar = userData.avatar || ''; // Use fresh avatar from database
                 window.auth.isBlocked = userData.isBlocked || false;
                 window.auth.blockedReason = userData.blockedReason || '';
                 
-                // Update session with fresh data
+                // Update session with fresh data including avatar
                 const sessionData = JSON.parse(session);
                 sessionData.isBlocked = userData.isBlocked || false;
                 sessionData.blockedReason = userData.blockedReason || '';
+                sessionData.avatar = userData.avatar || ''; // Update avatar in session
                 localStorage.setItem('mne_auth', JSON.stringify(sessionData));
                 
                 // Update UI blocking status
@@ -197,6 +200,16 @@ const auth = {
                 const sessionData = JSON.parse(session);
                 sessionData.avatar = avatarUrl;
                 localStorage.setItem('mne_auth', JSON.stringify(sessionData));
+            }
+            
+            // Update avatar display immediately for current user
+            const avatarImg = document.getElementById('current-user-avatar');
+            if (avatarImg && window.auth.currentUser === username) {
+                if (avatarUrl && avatarUrl.trim() !== '') {
+                    avatarImg.src = avatarUrl;
+                } else {
+                    avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=3b82f6&color=ffffff&size=200&bold=true`;
+                }
             }
             
             return true;
@@ -658,6 +671,12 @@ auth.checkSession().then(hasSession => {
     }
 });
 
-// Export for use in other modules
-window.authModule = auth;
+// Add authModule for compatibility and assign updateUserAvatar method
+window.authModule = {
+    canPerformTaskOperations: () => !window.auth.isBlocked,
+    updateUserAvatar: auth.updateUserAvatar
+};
+
+// Assign updateUserAvatar method to window.auth
+window.auth.updateUserAvatar = auth.updateUserAvatar;
 window.showNotification = showNotification;
