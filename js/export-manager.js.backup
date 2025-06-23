@@ -1,4 +1,4 @@
-// export-manager.js - Enhanced Excel Export with Visual Formatting and Filtered Data
+// export-manager.js - Enhanced Excel Export with View-Specific Data and Multi-Sheet Support
 window.exportManager = {
     // Initialize export functionality
     init: function() {
@@ -16,7 +16,7 @@ window.exportManager = {
         }
     },
 
-    // Export current view data to Excel with enhanced formatting
+    // Export current view data to Excel
     exportCurrentView: function() {
         if (!window.taskViews) {
             window.showNotification('Export functionality not available', 'error');
@@ -24,9 +24,9 @@ window.exportManager = {
         }
 
         try {
-            window.showNotification('Preparing enhanced export...', 'info');
+            window.showNotification('Preparing export...', 'info');
             
-            // Get current view data (filtered)
+            // Get current view data
             const viewData = window.taskViews.getCurrentViewData();
             
             if (viewData.tasks.length === 0) {
@@ -37,7 +37,7 @@ window.exportManager = {
             // Create workbook
             const workbook = XLSX.utils.book_new();
             
-            // Add multiple sheets with enhanced formatting
+            // Add multiple sheets based on view type
             this.addTaskDataSheet(workbook, viewData);
             this.addSummarySheet(workbook, viewData);
             this.addAnalyticsSheet(workbook, viewData);
@@ -50,7 +50,7 @@ window.exportManager = {
             // Write and download file
             XLSX.writeFile(workbook, filename);
             
-            window.showNotification(`Enhanced report exported as ${filename}`, 'success');
+            window.showNotification(`Data exported successfully as ${filename}`, 'success');
             
         } catch (error) {
             console.error('Export error:', error);
@@ -340,9 +340,9 @@ window.exportManager = {
         
         // Create enhanced summary data
         const summaryData = [
-            ['TASK MANAGEMENT SUMMARY REPORT', ''],
+            ['📊 TASK MANAGEMENT SUMMARY REPORT', ''],
             ['', ''],
-            ['REPORT INFORMATION', ''],
+            ['📅 REPORT INFORMATION', ''],
             ['Report Period:', period],
             ['Report Type:', type.charAt(0).toUpperCase() + type.slice(1)],
             ['Generated On:', new Date().toLocaleDateString('en-US', { 
@@ -356,44 +356,44 @@ window.exportManager = {
             ['Total Records:', analytics.total],
             ['', ''],
             
-            ['APPLIED FILTERS', ''],
+            ['🔍 APPLIED FILTERS', ''],
             ...filterInfo.map(filter => [filter.name, filter.value]),
             ['', ''],
             
-            ['OVERALL STATISTICS', ''],
+            ['📈 OVERALL STATISTICS', ''],
             ['Total Tasks:', analytics.total],
-            ['Completed Tasks:', analytics.completed],
-            ['In Progress Tasks:', analytics.inProgress],
-            ['Blocked Tasks:', analytics.blocked],
-            ['Paused Tasks:', analytics.paused],
-            ['To Do Tasks:', analytics.todo],
-            ['Overdue Tasks:', analytics.overdue],
-            ['Completion Rate:', `${analytics.completionRate}%`],
+            ['✅ Completed Tasks:', analytics.completed],
+            ['🔄 In Progress Tasks:', analytics.inProgress],
+            ['🚫 Blocked Tasks:', analytics.blocked],
+            ['⏸️ Paused Tasks:', analytics.paused],
+            ['📝 To Do Tasks:', analytics.todo],
+            ['⚠️ Overdue Tasks:', analytics.overdue],
+            ['📊 Completion Rate:', `${analytics.completionRate}%`],
             ['', ''],
             
-            ['PRIORITY BREAKDOWN', ''],
-            ['Urgent Priority:', analytics.byPriority.urgent || 0],
-            ['High Priority:', analytics.byPriority.high || 0],
-            ['Medium Priority:', analytics.byPriority.medium || 0],
-            ['Low Priority:', analytics.byPriority.low || 0],
+            ['🎯 PRIORITY BREAKDOWN', ''],
+            ['🔴 Urgent Priority:', analytics.byPriority.urgent || 0],
+            ['🟠 High Priority:', analytics.byPriority.high || 0],
+            ['🟡 Medium Priority:', analytics.byPriority.medium || 0],
+            ['🟢 Low Priority:', analytics.byPriority.low || 0],
             ['', ''],
             
-            ['CATEGORY BREAKDOWN', ''],
-            ...Object.entries(analytics.byCategory).map(([category, count]) => [`${category}:`, count]),
+            ['📂 CATEGORY BREAKDOWN', ''],
+            ...Object.entries(analytics.byCategory).map(([category, count]) => [`📁 ${category}:`, count]),
             ['', ''],
             
-            ['USER WORKLOAD DISTRIBUTION', ''],
-            ...Object.entries(analytics.byUser).map(([user, count]) => [`${user}:`, count]),
+            ['👥 USER WORKLOAD DISTRIBUTION', ''],
+            ...Object.entries(analytics.byUser).map(([user, count]) => [`👤 ${user}:`, count]),
             ['', ''],
             
-            ['TIME ANALYSIS', ''],
-            ['Due This Week:', analytics.dueThisWeek],
-            ['Due Next Week:', analytics.dueNextWeek],
-            ['Due This Month:', analytics.dueThisMonth],
-            ['Past Due:', analytics.overdue],
+            ['⏰ TIME ANALYSIS', ''],
+            ['📅 Due This Week:', analytics.dueThisWeek],
+            ['📅 Due Next Week:', analytics.dueNextWeek],
+            ['📅 Due This Month:', analytics.dueThisMonth],
+            ['⚠️ Past Due:', analytics.overdue],
             ['', ''],
             
-            ['KEY INSIGHTS', ''],
+            ['💡 KEY INSIGHTS', ''],
             ['Most Common Priority:', this.getMostCommon(analytics.byPriority)],
             ['Most Active Category:', this.getMostCommon(analytics.byCategory)],
             ['Most Assigned User:', this.getMostCommon(analytics.byUser)],
@@ -429,22 +429,22 @@ window.exportManager = {
         const filterDateEnd = document.getElementById('filter-date-end');
         
         if (filterUser && filterUser.value) {
-            filters.push({ name: 'User Filter:', value: filterUser.value });
+            filters.push({ name: '👤 User Filter:', value: filterUser.value });
         }
         if (filterPriority && filterPriority.value) {
-            filters.push({ name: 'Priority Filter:', value: filterPriority.value.toUpperCase() });
+            filters.push({ name: '🎯 Priority Filter:', value: filterPriority.value.toUpperCase() });
         }
         if (filterCategory && filterCategory.value) {
-            filters.push({ name: 'Category Filter:', value: filterCategory.value });
+            filters.push({ name: '📂 Category Filter:', value: filterCategory.value });
         }
         if (filterStatus && filterStatus.value) {
-            filters.push({ name: 'Status Filter:', value: filterStatus.value.replace('-', ' ').toUpperCase() });
+            filters.push({ name: '📊 Status Filter:', value: filterStatus.value.replace('-', ' ').toUpperCase() });
         }
         if (filterDateStart && filterDateStart.value) {
-            filters.push({ name: 'Start Date Filter:', value: new Date(filterDateStart.value).toLocaleDateString() });
+            filters.push({ name: '📅 Start Date Filter:', value: new Date(filterDateStart.value).toLocaleDateString() });
         }
         if (filterDateEnd && filterDateEnd.value) {
-            filters.push({ name: 'End Date Filter:', value: new Date(filterDateEnd.value).toLocaleDateString() });
+            filters.push({ name: '📅 End Date Filter:', value: new Date(filterDateEnd.value).toLocaleDateString() });
         }
         
         if (filters.length === 0) {
@@ -464,7 +464,7 @@ window.exportManager = {
                 if (cell && cell.v) {
                     const value = cell.v.toString();
                     
-                    // Section headers
+                    // Section headers (all caps or with emojis)
                     if (value.includes('SUMMARY REPORT') || value.includes('REPORT INFORMATION') || 
                         value.includes('APPLIED FILTERS') || value.includes('OVERALL STATISTICS') || 
                         value.includes('PRIORITY BREAKDOWN') || value.includes('CATEGORY BREAKDOWN') || 
@@ -773,6 +773,17 @@ window.exportManager = {
         }
     },
 
+    // Add conditional formatting to worksheet
+    addConditionalFormatting: function(worksheet, rowCount) {
+        // This is a simplified version - full conditional formatting would require more complex XLSX formatting
+        // For now, we'll just ensure proper data types
+        const range = XLSX.utils.encode_range({
+            s: { c: 0, r: 1 },
+            e: { c: 19, r: rowCount }
+        });
+        worksheet['!ref'] = range;
+    },
+
     // Format status for display
     formatStatus: function(status) {
         const statusMap = {
@@ -790,8 +801,8 @@ window.exportManager = {
         const progressMap = {
             'todo': '0%',
             'in-progress': '50%',
-            'blocked': '25%',
             'paused': '25%',
+            'blocked': '0%',
             'completed': '100%'
         };
         return progressMap[status] || '0%';
@@ -800,13 +811,19 @@ window.exportManager = {
     // Export filtered tasks (for custom exports)
     exportFilteredTasks: function(tasks, filename = 'filtered_tasks.xlsx') {
         try {
+            const workbook = XLSX.utils.book_new();
+            
             const viewData = {
                 tasks: tasks,
-                period: 'Filtered Results',
+                period: 'Custom Filter',
                 type: 'filtered'
             };
             
-            this.exportCurrentView = () => this.addTaskDataSheet(XLSX.utils.book_new(), viewData);
+            this.addTaskDataSheet(workbook, viewData);
+            this.addSummarySheet(workbook, viewData);
+            
+            XLSX.writeFile(workbook, filename);
+            window.showNotification(`Filtered data exported as ${filename}`, 'success');
             
         } catch (error) {
             console.error('Export error:', error);
