@@ -399,9 +399,13 @@ window.taskViews = {
     // MONTHLY VIEW - Enhanced Table Format
     renderMonthlyView: function() {
         const monthlyContainer = document.getElementById('monthly-content');
-        if (!monthlyContainer || !window.taskManager) return;
+        if (!window.taskManager) return;
 
-        const currentDate = window.taskManager.currentDate || new Date();
+        // Initialize current date if not set
+        if (!window.taskManager.currentDate) {
+            window.taskManager.currentDate = new Date();
+        }
+        const currentDate = window.taskManager.currentDate;
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 
@@ -437,6 +441,12 @@ window.taskViews = {
         const quarterlyContainer = document.getElementById('quarterly-content');
         if (!quarterlyContainer || !window.taskManager) return;
 
+        // Initialize current quarter and year if not set
+        if (!window.taskManager.currentQuarter || !window.taskManager.currentYear) {
+            const now = new Date();
+            window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+            window.taskManager.currentYear = now.getFullYear();
+        }
         const quarter = window.taskManager.currentQuarter;
         const year = window.taskManager.currentYear;
 
@@ -469,6 +479,10 @@ window.taskViews = {
         const annualContainer = document.getElementById('annual-content');
         if (!annualContainer || !window.taskManager) return;
 
+        // Initialize current year if not set
+        if (!window.taskManager.currentYear) {
+            window.taskManager.currentYear = new Date().getFullYear();
+        }
         const year = window.taskManager.currentYear;
 
         // Update year display
