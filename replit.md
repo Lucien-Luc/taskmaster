@@ -151,6 +151,7 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 23, 2025: Converted Microsoft Graph integration to vanilla JavaScript for FTP hosting compatibility
 - June 23, 2025: Consolidated filters section into compact dropdown to save vertical space
 - June 23, 2025: Fixed filters dropdown initialization and click handling - now fully functional
+- June 23, 2025: Fixed period navigation skipping issue in all views (weekly, monthly, quarterly, annual)
 
 ## Theme System
 The application now supports two glassmorphic themes:

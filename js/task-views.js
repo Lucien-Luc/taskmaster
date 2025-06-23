@@ -257,6 +257,13 @@ window.taskViews = {
 
     navigateQuarter: function(direction) {
         if (window.taskManager) {
+            // Initialize quarter and year if not set
+            if (!window.taskManager.currentQuarter || !window.taskManager.currentYear) {
+                const now = new Date();
+                window.taskManager.currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+                window.taskManager.currentYear = now.getFullYear();
+            }
+            
             window.taskManager.currentQuarter += direction;
             if (window.taskManager.currentQuarter < 1) {
                 window.taskManager.currentQuarter = 4;
@@ -271,6 +278,11 @@ window.taskViews = {
 
     navigateYear: function(direction) {
         if (window.taskManager) {
+            // Initialize year if not set
+            if (!window.taskManager.currentYear) {
+                window.taskManager.currentYear = new Date().getFullYear();
+            }
+            
             window.taskManager.currentYear += direction;
             this.renderAnnualView();
         }
@@ -371,7 +383,11 @@ window.taskViews = {
         const weeklyContainer = document.getElementById('weekly-content');
         if (!weeklyContainer || !window.taskManager) return;
 
-        const currentDate = window.taskManager.currentWeekDate || new Date();
+        // Initialize current week date if not set
+        if (!window.taskManager.currentWeekDate) {
+            window.taskManager.currentWeekDate = new Date();
+        }
+        const currentDate = window.taskManager.currentWeekDate;
         const weekStart = this.getWeekStart(currentDate);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
