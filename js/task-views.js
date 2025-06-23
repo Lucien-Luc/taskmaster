@@ -128,7 +128,8 @@ window.taskViews = {
                         category: '',
                         status: '',
                         dateStart: '',
-                        dateEnd: ''
+                        dateEnd: '',
+                        overdue: false
                     };
 
                     // Update view
@@ -141,6 +142,42 @@ window.taskViews = {
                 });
             }
 
+            // Overdue filter button
+            const overdueFilter = document.getElementById('filter-overdue');
+            if (overdueFilter) {
+                overdueFilter.addEventListener('click', () => {
+                    // Clear other filters and show only overdue tasks
+                    document.getElementById('filter-user').value = '';
+                    document.getElementById('filter-priority').value = '';
+                    document.getElementById('filter-category').value = '';
+                    document.getElementById('filter-status').value = '';
+                    document.getElementById('filter-date-start').value = '';
+                    document.getElementById('filter-date-end').value = '';
+                    
+                    // Set overdue filter
+                    this.currentFilter = {
+                        user: '',
+                        priority: '',
+                        category: '',
+                        status: '',
+                        dateStart: '',
+                        dateEnd: '',
+                        overdue: true
+                    };
+                    
+                    // Close the dropdown
+                    filtersPanel.classList.add('hidden');
+                    const toggle = document.getElementById('filters-toggle');
+                    if (toggle) toggle.classList.remove('active');
+                    
+                    // Update view and show notification
+                    this.updateCurrentView();
+                    if (window.showNotification) {
+                        window.showNotification('Showing overdue tasks only', 'warning');
+                    }
+                }.bind(this));
+            }
+
             if (applyFilters) {
                 applyFilters.addEventListener('click', () => {
                     // Close the dropdown
@@ -148,11 +185,14 @@ window.taskViews = {
                     const toggle = document.getElementById('filters-toggle');
                     if (toggle) toggle.classList.remove('active');
                     
+                    // Update view
+                    this.updateCurrentView();
+                    
                     // Show notification
                     if (window.showNotification) {
                         window.showNotification('Filters applied', 'success');
                     }
-                });
+                }.bind(this));
             }
         };
         
@@ -387,6 +427,18 @@ window.taskViews = {
                     if (taskDate > endDate) {
                         return false;
                     }
+                }
+            }
+            
+            // Overdue filter
+            if (this.currentFilter.overdue) {
+                // Check if task is overdue using the overdue manager
+                if (window.overdueManager && !window.overdueManager.isTaskOverdue(task)) {
+                    return false;
+                }
+                // Also exclude completed tasks from overdue filter
+                if (task.status === 'completed') {
+                    return false;
                 }
             }
             
