@@ -68,6 +68,38 @@ body {
     background: #ef4444;
 }
 
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.theme-toggle i {
+    font-size: 20px;
+    color: #fbbf24;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover i {
+    color: #f59e0b;
+}
+
 /* User Block Warning */
 .user-block-warning {
     background: rgba(239, 68, 68, 0.2);
