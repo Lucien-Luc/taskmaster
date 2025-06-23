@@ -149,6 +149,7 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 23, 2025: Developed comprehensive corporate setup documentation and deployment guide
 - June 23, 2025: Cleaned up demo components, ready for production Azure AD configuration
 - June 23, 2025: Converted Microsoft Graph integration to vanilla JavaScript for FTP hosting compatibility
+- June 23, 2025: Consolidated filters section into compact dropdown to save vertical space
 
 ## Theme System
 The application now supports two glassmorphic themes:

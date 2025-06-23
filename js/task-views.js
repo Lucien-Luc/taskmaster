@@ -14,6 +14,7 @@ window.taskViews = {
         console.log('Initializing advanced task views...');
         this.setupFilterListeners();
         this.setupViewSpecificEvents();
+        this.setupFiltersDropdown();
     },
 
     // Setup filter event listeners
@@ -64,6 +65,80 @@ window.taskViews = {
             filterDateEnd.addEventListener('change', (e) => {
                 this.currentFilter.dateEnd = e.target.value;
                 this.updateCurrentView();
+            });
+        }
+    },
+
+    // Setup filters dropdown functionality
+    setupFiltersDropdown: function() {
+        const filtersToggle = document.getElementById('filters-toggle');
+        const filtersPanel = document.getElementById('filters-panel');
+        const clearFilters = document.getElementById('clear-filters');
+        const applyFilters = document.getElementById('apply-filters');
+
+        if (filtersToggle && filtersPanel) {
+            filtersToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = !filtersPanel.classList.contains('hidden');
+                
+                if (isOpen) {
+                    filtersPanel.classList.add('hidden');
+                    filtersToggle.classList.remove('active');
+                } else {
+                    filtersPanel.classList.remove('hidden');
+                    filtersToggle.classList.add('active');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!filtersToggle.contains(e.target) && !filtersPanel.contains(e.target)) {
+                    filtersPanel.classList.add('hidden');
+                    filtersToggle.classList.remove('active');
+                }
+            });
+        }
+
+        if (clearFilters) {
+            clearFilters.addEventListener('click', () => {
+                // Clear all filter values
+                document.getElementById('filter-user').value = '';
+                document.getElementById('filter-priority').value = '';
+                document.getElementById('filter-category').value = '';
+                document.getElementById('filter-status').value = '';
+                document.getElementById('filter-date-start').value = '';
+                document.getElementById('filter-date-end').value = '';
+
+                // Reset filter state
+                this.currentFilter = {
+                    user: '',
+                    priority: '',
+                    category: '',
+                    status: '',
+                    dateStart: '',
+                    dateEnd: ''
+                };
+
+                // Update view
+                this.updateCurrentView();
+                
+                // Show notification
+                if (window.showNotification) {
+                    window.showNotification('All filters cleared', 'info');
+                }
+            });
+        }
+
+        if (applyFilters) {
+            applyFilters.addEventListener('click', () => {
+                // Close the dropdown
+                filtersPanel.classList.add('hidden');
+                filtersToggle.classList.remove('active');
+                
+                // Show notification
+                if (window.showNotification) {
+                    window.showNotification('Filters applied', 'success');
+                }
             });
         }
     },

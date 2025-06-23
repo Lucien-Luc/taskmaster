@@ -182,54 +182,66 @@
 
             <!-- Filters -->
             <div class="filters-section">
-                <h3>Filters</h3>
-                <div class="filter-group">
-                    <label for="filter-user">Assigned To</label>
-                    <select id="filter-user">
-                        <option value="">All Members</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-priority">Priority</label>
-                    <select id="filter-priority">
-                        <option value="">All Priorities</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-category">Category</label>
-                    <select id="filter-category">
-                        <option value="">All Categories</option>
-                        <option value="development">Development</option>
-                        <option value="design">Design</option>
-                        <option value="testing">Testing</option>
-                        <option value="meeting">Meeting</option>
-                        <option value="meeting">Field work</option>
-                        <option value="documentation">Documentation</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-status">Status</label>
-                    <select id="filter-status">
-                        <option value="">All Statuses</option>
-                        <option value="todo">To Do</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="blocked">Blocked</option>
-                        <option value="paused">Paused</option>
-                        <option value="completed">Completed</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-date-start">Start Date</label>
-                    <input type="date" id="filter-date-start">
-                </div>
-                <div class="filter-group">
-                    <label for="filter-date-end">End Date</label>
-                    <input type="date" id="filter-date-end">
+                <div class="filters-dropdown">
+                    <button class="btn btn-outline filters-toggle" id="filters-toggle">
+                        <i data-lucide="filter"></i>
+                        Filters
+                        <i data-lucide="chevron-down" class="dropdown-arrow"></i>
+                    </button>
+                    <div class="filters-panel hidden" id="filters-panel">
+                        <div class="filter-group">
+                            <label for="filter-user">Assigned To</label>
+                            <select id="filter-user">
+                                <option value="">All Members</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-priority">Priority</label>
+                            <select id="filter-priority">
+                                <option value="">All Priorities</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-category">Category</label>
+                            <select id="filter-category">
+                                <option value="">All Categories</option>
+                                <option value="development">Development</option>
+                                <option value="design">Design</option>
+                                <option value="testing">Testing</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="meeting">Field work</option>
+                                <option value="documentation">Documentation</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-status">Status</label>
+                            <select id="filter-status">
+                                <option value="">All Statuses</option>
+                                <option value="todo">To Do</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="paused">Paused</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-date-start">Start Date</label>
+                            <input type="date" id="filter-date-start">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-date-end">End Date</label>
+                            <input type="date" id="filter-date-end">
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn btn-outline btn-sm" id="clear-filters">Clear All</button>
+                            <button class="btn btn-primary btn-sm" id="apply-filters">Apply</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
