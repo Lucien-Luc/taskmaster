@@ -213,11 +213,13 @@ window.dueTasksWarning = {
         const filterBtn = modal.querySelector('#due-task-filter');
 
         dismissBtn.addEventListener('click', () => {
+            // Close modal and stay in current view
             this.closeDueTasksModal();
         });
 
         filterBtn.addEventListener('click', () => {
-            this.filterTodayDueTasks();
+            // Switch to kanban view and filter today's tasks
+            this.goToKanbanWithTodayFilter();
             this.closeDueTasksModal();
         });
 
@@ -239,6 +241,70 @@ window.dueTasksWarning = {
 
         // Store reference for easy removal
         this.currentModal = modal;
+    },
+
+    goToKanbanWithTodayFilter: function() {
+        // Switch to kanban view first
+        if (window.taskManager) {
+            window.taskManager.currentView = 'kanban';
+            
+            // Update view buttons
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            const kanbanBtn = document.querySelector('[data-view="kanban"]');
+            if (kanbanBtn) kanbanBtn.classList.add('active');
+            
+            // Hide all view containers
+            document.querySelectorAll('.view-container').forEach(container => {
+                container.style.display = 'none';
+            });
+            
+            // Show kanban container
+            const kanbanContainer = document.getElementById('kanban-view');
+            if (kanbanContainer) kanbanContainer.style.display = 'block';
+        }
+
+        // Set date filter to today
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        // Clear other filters and set date filter
+        if (window.taskViews) {
+            window.taskViews.currentFilter = {
+                user: '',
+                priority: '',
+                category: '',
+                status: '',
+                dateStart: todayStr,
+                dateEnd: todayStr,
+                overdue: false
+            };
+
+            // Update filter form if visible
+            const dateStartInput = document.getElementById('filter-date-start');
+            const dateEndInput = document.getElementById('filter-date-end');
+            
+            if (dateStartInput) dateStartInput.value = todayStr;
+            if (dateEndInput) dateEndInput.value = todayStr;
+
+            // Clear other filter inputs
+            const filterInputs = ['filter-user', 'filter-priority', 'filter-category', 'filter-status'];
+            filterInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) input.value = '';
+            });
+        }
+
+        // Render kanban board with filtered tasks
+        if (window.kanbanManager && window.taskManager) {
+            // Get today's due tasks
+            const todayDueTasks = this.getTodayDueTasks();
+            window.kanbanManager.renderKanbanBoard(todayDueTasks);
+            
+            // Show notification
+            if (window.showNotification) {
+                window.showNotification(`Showing ${todayDueTasks.length} task${todayDueTasks.length !== 1 ? 's' : ''} due today in Kanban view`, 'info');
+            }
+        }
     },
 
     filterTodayDueTasks: function() {
