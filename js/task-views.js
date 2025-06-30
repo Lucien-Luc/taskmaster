@@ -75,6 +75,7 @@ window.taskViews = {
         // Setting up filters dropdown
         
         // Wait for DOM to be ready
+        const self = this; // Store reference to taskViews object
         const initDropdown = () => {
             const filtersToggle = document.getElementById('filters-toggle');
             const filtersPanel = document.getElementById('filters-panel');
@@ -123,7 +124,7 @@ window.taskViews = {
                     document.getElementById('filter-date-end').value = '';
 
                     // Reset filter state
-                    this.currentFilter = {
+                    self.currentFilter = {
                         user: '',
                         priority: '',
                         category: '',
@@ -133,8 +134,13 @@ window.taskViews = {
                         overdue: false
                     };
 
+                    // Close the dropdown
+                    filtersPanel.classList.add('hidden');
+                    const toggle = document.getElementById('filters-toggle');
+                    if (toggle) toggle.classList.remove('active');
+
                     // Update view
-                    this.updateCurrentView();
+                    self.updateCurrentView();
                     
                     // Show notification
                     if (window.showNotification) {
@@ -156,7 +162,7 @@ window.taskViews = {
                     document.getElementById('filter-date-end').value = '';
                     
                     // Set overdue filter
-                    this.currentFilter = {
+                    self.currentFilter = {
                         user: '',
                         priority: '',
                         category: '',
@@ -172,7 +178,7 @@ window.taskViews = {
                     if (toggle) toggle.classList.remove('active');
                     
                     // Update view and show notification
-                    this.updateCurrentView();
+                    self.updateCurrentView();
                     if (window.showNotification) {
                         window.showNotification('Showing overdue tasks only', 'warning');
                     }
@@ -181,13 +187,24 @@ window.taskViews = {
 
             if (applyFilters) {
                 applyFilters.addEventListener('click', function() {
+                    // Collect current filter values from the form
+                    self.currentFilter = {
+                        user: document.getElementById('filter-user').value,
+                        priority: document.getElementById('filter-priority').value,
+                        category: document.getElementById('filter-category').value,
+                        status: document.getElementById('filter-status').value,
+                        dateStart: document.getElementById('filter-date-start').value,
+                        dateEnd: document.getElementById('filter-date-end').value,
+                        overdue: false
+                    };
+                    
                     // Close the dropdown
                     filtersPanel.classList.add('hidden');
                     const toggle = document.getElementById('filters-toggle');
                     if (toggle) toggle.classList.remove('active');
                     
                     // Update view
-                    this.updateCurrentView();
+                    self.updateCurrentView();
                     
                     // Show notification
                     if (window.showNotification) {
