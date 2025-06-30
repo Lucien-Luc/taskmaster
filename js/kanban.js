@@ -369,8 +369,17 @@ window.kanbanManager = {
         
         // Update task status
         try {
+            console.log('Drag and Drop: Updating task status for', this.draggedTask.title, 'from', this.draggedTask.status, 'to', newStatus);
             await window.taskManager.updateTaskStatus(this.draggedTask.id, newStatus);
+            console.log('Drag and Drop: Task status update completed successfully');
             window.showNotification(`Task moved to ${this.getStatusDisplayName(newStatus)}`, 'success');
+            
+            // Force refresh the kanban board immediately
+            setTimeout(() => {
+                console.log('Drag and Drop: Forcing kanban refresh');
+                window.kanbanManager.renderKanbanBoard();
+            }, 500);
+            
         } catch (error) {
             console.error('Error updating task status:', error);
             window.showNotification('Error updating task status', 'error');

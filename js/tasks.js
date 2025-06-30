@@ -657,7 +657,15 @@ window.taskManager = {
     // Update task status (used by drag & drop)
     updateTaskStatus: async function(taskId, newStatus) {
         try {
+            console.log('Attempting to update task status:', taskId, 'to', newStatus);
             const task = this.tasks.find(t => t.id === taskId);
+            
+            if (!task) {
+                console.error('Task not found:', taskId);
+                throw new Error('Task not found');
+            }
+            
+            console.log('Found task:', task.title, 'current status:', task.status);
             const currentUser = window.auth?.currentUser;
             
             // Check if user can make this status change
@@ -686,8 +694,20 @@ window.taskManager = {
                 updateData.pausedBy = window.auth.currentUser;
             }
             
+            console.log('Updating task in Firestore with data:', updateData);
             await updateDoc(taskRef, updateData);
-            console.log('Task status updated:', taskId, newStatus);
+            console.log('Task status updated successfully in Firestore:', taskId, newStatus);
+            
+            // Update local task immediately for responsiveness
+            const localTask = this.tasks.find(t => t.id === taskId);
+            if (localTask) {
+                localTask.status = newStatus;
+                localTask.updatedAt = new Date();
+                console.log('Updated local task cache');
+            }
+            
+            // Force immediate UI update
+            this.updateAllViews();
             
             // If this was a self-unblocking action, show notification
             if (window.auth?.isBlocked && task?.status === 'blocked' && 
