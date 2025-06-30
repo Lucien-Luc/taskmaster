@@ -70,6 +70,15 @@ This is a web-based Task Management & Monitoring system built for project manage
 - Profile picture management
 - Integration with user blocking system
 
+### 8. Due Tasks Warning System (`js/due-tasks-warning.js`)
+- Automatic detection of tasks due today on login and page refresh
+- Friendly pop-up modal with glassmorphic styling for both themes
+- List display of due tasks with priority indicators and task details
+- Two action options: "I Know" (dismiss) and "Take Me There" (filter to today's tasks)
+- localStorage tracking to show warning only once per day
+- Integration with existing filter system for seamless navigation
+- Manual testing capabilities via browser console commands
+
 ## Data Flow
 
 ### Task Operations
@@ -159,6 +168,10 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 30, 2025: Implemented 5-minute grace period countdown after self-unblocking
 - June 30, 2025: Enhanced drag-and-drop functionality to allow moving overdue tasks to paused status during grace period
 - June 30, 2025: Fixed kanban board permission checks to support grace period task management
+- June 30, 2025: Fixed filter section buttons - overdue only, clear all, and apply buttons now work properly
+- June 30, 2025: Implemented due tasks warning system with friendly pop-up modal for tasks due today
+- June 30, 2025: Added glassmorphic styling for due tasks modal in both dark and light themes
+- June 30, 2025: Integrated warning system with existing filter functionality for seamless task navigation
 
 ## Theme System
 The application now supports two glassmorphic themes:
