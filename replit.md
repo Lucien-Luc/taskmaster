@@ -152,6 +152,10 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 23, 2025: Consolidated filters section into compact dropdown to save vertical space
 - June 23, 2025: Fixed filters dropdown initialization and click handling - now fully functional
 - June 23, 2025: Fixed period navigation skipping issue in all views (weekly, monthly, quarterly, annual)
+- June 30, 2025: Completed migration from Replit Agent to standard Replit environment
+- June 30, 2025: Enhanced user self-unblocking system - users can now fully unblock themselves without restrictions
+- June 30, 2025: Changed role field from dropdown to open text input during user registration
+- June 30, 2025: Added self-unblock button to user interface for immediate account recovery
 
 ## Theme System
 The application now supports two glassmorphic themes:

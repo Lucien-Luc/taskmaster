@@ -77,11 +77,8 @@
                     </div>
                     <div class="form-group">
                         <label for="user-role">Role</label>
-                        <select id="user-role" required>
-                            <option value="member">Team Member</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Administrator</option>
-                        </select>
+                        <input type="text" id="user-role" placeholder="Enter your role (e.g., Developer, Manager, Designer)" required>
+                        <small>You can enter any role that describes your position</small>
                     </div>
                     <div class="form-group">
                         <label for="user-avatar">Avatar URL (optional)</label>
@@ -139,6 +136,10 @@
                     <div class="block-warning-text">
                         <strong>Account Blocked</strong>
                         <p id="block-warning-message">You have overdue tasks that require attention.</p>
+                        <button class="btn btn-sm btn-primary" id="self-unblock-btn">
+                            <i data-lucide="unlock"></i>
+                            Unblock Myself
+                        </button>
                     </div>
                 </div>
             </div>

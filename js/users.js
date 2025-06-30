@@ -388,6 +388,34 @@ const auth = {
             canMoveTasks: auth.canMoveTasks(),
             canPerformOperations: auth.canPerformTaskOperations()
         };
+    },
+
+    // Self-unblock function - allows users to unblock themselves
+    selfUnblock: async () => {
+        if (!window.auth.isAuthenticated || !window.auth.currentUser) {
+            showNotification('You must be logged in to unblock yourself', 'error');
+            return false;
+        }
+
+        try {
+            const username = window.auth.currentUser;
+            console.log(`User ${username} is attempting to self-unblock`);
+            
+            // Simply unblock the user without any restrictions
+            const success = await auth.updateUserBlockingStatus(username, false, '');
+            
+            if (success) {
+                showNotification('Your account has been successfully unblocked', 'success');
+                return true;
+            } else {
+                showNotification('Failed to unblock your account. Please try again.', 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error during self-unblock:', error);
+            showNotification('An error occurred while unblocking your account', 'error');
+            return false;
+        }
     }
 };
 
@@ -592,6 +620,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelCreateUserBtn.addEventListener('click', () => {
             if (createUserModal) createUserModal.classList.add('hidden');
             if (loginModal) loginModal.classList.remove('hidden');
+        });
+    }
+    
+    // Self-unblock button
+    const selfUnblockBtn = document.getElementById('self-unblock-btn');
+    if (selfUnblockBtn) {
+        selfUnblockBtn.addEventListener('click', async () => {
+            const originalText = selfUnblockBtn.innerHTML;
+            selfUnblockBtn.disabled = true;
+            selfUnblockBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Unblocking...';
+            if (window.lucide) window.lucide.createIcons();
+            
+            const success = await auth.selfUnblock();
+            
+            // Reset button
+            selfUnblockBtn.disabled = false;
+            selfUnblockBtn.innerHTML = originalText;
+            if (window.lucide) window.lucide.createIcons();
         });
     }
     
