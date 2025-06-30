@@ -18,8 +18,19 @@ window.dueTasksWarning = {
     setupWarningCheck: function() {
         console.log('Due Tasks Warning: Setting up warning check...');
         
+        let checkCount = 0;
+        const maxChecks = 20; // Stop after 10 seconds
+        
         // Listen for when tasks are loaded and user is authenticated
         const checkInterval = setInterval(() => {
+            checkCount++;
+            
+            if (checkCount > maxChecks) {
+                console.log('Due Tasks Warning: Max checks reached, stopping...');
+                clearInterval(checkInterval);
+                return;
+            }
+            
             console.log('Due Tasks Warning: Checking conditions...', {
                 auth: !!window.auth?.currentUser,
                 taskManager: !!window.taskManager,
@@ -65,6 +76,64 @@ window.dueTasksWarning = {
         } else {
             console.log('Due Tasks Warning: No tasks due today');
         }
+    },
+
+    // Manual show without authentication check
+    showDueTasksManually: function() {
+        console.log('Due Tasks Warning: Manual trigger activated');
+        
+        if (!window.taskManager?.tasks || window.taskManager.tasks.length === 0) {
+            // Show a friendly message if no tasks exist
+            this.showNoTasksMessage();
+            return;
+        }
+
+        const dueTasks = this.getTodayDueTasks();
+        
+        if (dueTasks.length > 0) {
+            this.showDueTasksModal(dueTasks);
+        } else {
+            this.showNoTasksMessage();
+        }
+    },
+
+    showNoTasksMessage: function() {
+        const modal = document.createElement('div');
+        modal.className = 'due-tasks-modal-overlay';
+        modal.innerHTML = `
+            <div class="due-tasks-modal">
+                <div class="due-tasks-header">
+                    <div class="due-tasks-icon">
+                        <i data-lucide="check-circle"></i>
+                    </div>
+                    <h3>No Tasks Due Today</h3>
+                    <p>You're all caught up! No tasks are due today.</p>
+                </div>
+                
+                <div class="due-tasks-actions">
+                    <button class="btn btn-primary" onclick="window.dueTasksWarning.closeDueTasksModal()">
+                        <i data-lucide="check"></i>
+                        Great!
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // Initialize Lucide icons
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeDueTasksModal();
+            }
+        });
+
+        this.currentModal = modal;
     },
 
     getTodayDueTasks: function() {
@@ -270,7 +339,25 @@ window.dueTasksWarning = {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         window.dueTasksWarning.init();
+        
+        // Setup button click handler
+        const dueButton = document.getElementById('show-due-warning');
+        if (dueButton) {
+            dueButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.dueTasksWarning.showDueTasksManually();
+            });
+        }
     });
 } else {
     window.dueTasksWarning.init();
+    
+    // Setup button click handler
+    const dueButton = document.getElementById('show-due-warning');
+    if (dueButton) {
+        dueButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.dueTasksWarning.showDueTasksManually();
+        });
+    }
 }

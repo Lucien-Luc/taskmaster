@@ -876,6 +876,20 @@ body {
     color: #ffffff;
 }
 
+/* Due Today button special styling */
+#show-due-warning {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+    border-color: #fbbf24;
+    color: #fbbf24;
+    margin-left: 8px;
+}
+
+#show-due-warning:hover {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3));
+    border-color: #f59e0b;
+    transform: translateY(-1px);
+}
+
 /* View Content */
 .view-content {
     flex: 1;
