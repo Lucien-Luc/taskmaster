@@ -156,6 +156,9 @@ This is a web-based Task Management & Monitoring system built for project manage
 - June 30, 2025: Enhanced user self-unblocking system - users can now fully unblock themselves without restrictions
 - June 30, 2025: Changed role field from dropdown to open text input during user registration
 - June 30, 2025: Added self-unblock button to user interface for immediate account recovery
+- June 30, 2025: Implemented 5-minute grace period countdown after self-unblocking
+- June 30, 2025: Enhanced drag-and-drop functionality to allow moving overdue tasks to paused status during grace period
+- June 30, 2025: Fixed kanban board permission checks to support grace period task management
 
 ## Theme System
 The application now supports two glassmorphic themes:

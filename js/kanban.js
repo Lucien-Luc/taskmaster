@@ -160,6 +160,9 @@ window.kanbanManager = {
             this.updateColumnCount(status, statusTasks.length);
         });
         
+        // Setup drag and drop listeners for all task lists
+        this.setupTaskListDropListeners();
+        
         // Setup drag and drop for new elements
         this.setupTaskCardListeners();
     },
@@ -216,10 +219,14 @@ window.kanbanManager = {
             ${description}
         `;
         
+        // Setup drag event listeners immediately
+        card.addEventListener('dragstart', this.handleDragStart.bind(this));
+        card.addEventListener('dragend', this.handleDragEnd.bind(this));
+        
         return card;
     },
     
-    // Setup event listeners for task cards
+    // Setup event listeners for task cards (deprecated - now handled in createTaskCard)
     setupTaskCardListeners: function() {
         const taskCards = document.querySelectorAll('.task-card');
         const taskLists = document.querySelectorAll('.task-list');
@@ -238,14 +245,42 @@ window.kanbanManager = {
             list.addEventListener('dragleave', this.handleDragLeave.bind(this));
         });
     },
+
+    // Setup drop listeners for task list containers
+    setupTaskListDropListeners: function() {
+        const kanbanBoard = document.getElementById('kanban-board');
+        if (!kanbanBoard) return;
+        
+        const taskLists = kanbanBoard.querySelectorAll('.task-list');
+        taskLists.forEach(list => {
+            // Remove existing listeners first
+            list.removeEventListener('dragover', this.handleDragOver);
+            list.removeEventListener('drop', this.handleDrop);
+            list.removeEventListener('dragenter', this.handleDragEnter);
+            list.removeEventListener('dragleave', this.handleDragLeave);
+            
+            // Add new listeners
+            list.addEventListener('dragover', this.handleDragOver.bind(this));
+            list.addEventListener('drop', this.handleDrop.bind(this));
+            list.addEventListener('dragenter', this.handleDragEnter.bind(this));
+            list.addEventListener('dragleave', this.handleDragLeave.bind(this));
+        });
+    },
     
     // Handle drag start
     handleDragStart: function(e) {
-        // Check if user is blocked
+        // Check if user is blocked - but allow moving overdue tasks during grace period
         if (window.auth?.isBlocked) {
-            e.preventDefault();
-            window.showNotification('Cannot move tasks while account is blocked', 'error');
-            return;
+            const gracePeriodActive = localStorage.getItem('gracePeriodStart');
+            const taskId = e.target.dataset.taskId;
+            const task = window.taskManager?.tasks.find(t => t.id === taskId);
+            
+            // Allow moving overdue tasks during grace period
+            if (!gracePeriodActive || !task || !window.overdueManager?.isTaskOverdue(task)) {
+                e.preventDefault();
+                window.showNotification('Cannot move tasks while account is blocked', 'error');
+                return;
+            }
         }
         
         this.draggedElement = e.target;
@@ -300,8 +335,11 @@ window.kanbanManager = {
         const newStatus = e.target.dataset.status;
         if (!newStatus || newStatus === this.draggedTask.status) return;
         
-        // Check if user can perform this operation
-        if (!window.authModule.canPerformTaskOperations()) {
+        // Check if user can perform this operation - allow during grace period for overdue tasks
+        const gracePeriodActive = localStorage.getItem('gracePeriodStart');
+        const isOverdueTask = window.overdueManager?.isTaskOverdue(this.draggedTask);
+        
+        if (window.auth?.isBlocked && (!gracePeriodActive || !isOverdueTask)) {
             window.showNotification('Cannot move tasks while account is blocked', 'error');
             return;
         }

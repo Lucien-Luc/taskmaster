@@ -390,7 +390,7 @@ const auth = {
         };
     },
 
-    // Self-unblock function - allows users to unblock themselves
+    // Self-unblock function - allows users to unblock themselves with grace period
     selfUnblock: async () => {
         if (!window.auth.isAuthenticated || !window.auth.currentUser) {
             showNotification('You must be logged in to unblock yourself', 'error');
@@ -401,11 +401,13 @@ const auth = {
             const username = window.auth.currentUser;
             console.log(`User ${username} is attempting to self-unblock`);
             
-            // Simply unblock the user without any restrictions
+            // Unblock the user and start grace period
             const success = await auth.updateUserBlockingStatus(username, false, '');
             
             if (success) {
-                showNotification('Your account has been successfully unblocked', 'success');
+                // Start 5-minute grace period countdown
+                auth.startGracePeriodCountdown();
+                showNotification('Account unblocked! You have 5 minutes to move overdue tasks to paused status', 'warning');
                 return true;
             } else {
                 showNotification('Failed to unblock your account. Please try again.', 'error');
@@ -415,6 +417,146 @@ const auth = {
             console.error('Error during self-unblock:', error);
             showNotification('An error occurred while unblocking your account', 'error');
             return false;
+        }
+    },
+
+    // Start grace period countdown after self-unblock
+    startGracePeriodCountdown: () => {
+        const gracePeriodDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const startTime = Date.now();
+        
+        // Store grace period start time
+        localStorage.setItem('gracePeriodStart', startTime.toString());
+        
+        // Show countdown UI
+        auth.showGracePeriodUI();
+        
+        // Start countdown timer
+        const countdownInterval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const remaining = gracePeriodDuration - elapsed;
+            
+            if (remaining <= 0) {
+                clearInterval(countdownInterval);
+                auth.endGracePeriod();
+            } else {
+                auth.updateGracePeriodDisplay(remaining);
+            }
+        }, 1000);
+        
+        // Store interval ID for cleanup
+        window.gracePeriodInterval = countdownInterval;
+    },
+
+    // Show grace period UI
+    showGracePeriodUI: () => {
+        const blockWarning = document.getElementById('user-block-warning');
+        const blockMessage = document.getElementById('block-warning-message');
+        const selfUnblockBtn = document.getElementById('self-unblock-btn');
+        
+        if (blockWarning && blockMessage) {
+            blockWarning.classList.remove('hidden');
+            blockMessage.innerHTML = `
+                <strong>Grace Period Active</strong>
+                <p>You have <span id="grace-countdown">5:00</span> remaining to move overdue tasks to paused status.</p>
+                <p>Drag overdue tasks to the "Paused" column to avoid being blocked again.</p>
+            `;
+            
+            // Hide self-unblock button during grace period
+            if (selfUnblockBtn) {
+                selfUnblockBtn.style.display = 'none';
+            }
+        }
+    },
+
+    // Update grace period countdown display
+    updateGracePeriodDisplay: (remainingMs) => {
+        const countdownEl = document.getElementById('grace-countdown');
+        if (countdownEl) {
+            const minutes = Math.floor(remainingMs / 60000);
+            const seconds = Math.floor((remainingMs % 60000) / 1000);
+            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    },
+
+    // End grace period and check for overdue tasks
+    endGracePeriod: async () => {
+        console.log('Grace period ended, checking for overdue tasks...');
+        
+        // Clear grace period from localStorage
+        localStorage.removeItem('gracePeriodStart');
+        
+        // Clear interval
+        if (window.gracePeriodInterval) {
+            clearInterval(window.gracePeriodInterval);
+            delete window.gracePeriodInterval;
+        }
+        
+        // Check if user still has overdue tasks
+        if (window.taskManager && window.taskManager.tasks && window.overdueManager) {
+            const currentUser = window.auth.currentUser;
+            const tasks = window.taskManager.tasks;
+            
+            const userOverdueTasks = tasks.filter(task => {
+                return task.assignedUsers && 
+                       task.assignedUsers.includes(currentUser) && 
+                       task.status !== 'completed' && 
+                       task.status !== 'paused' && 
+                       window.overdueManager.isTaskOverdue(task);
+            });
+            
+            if (userOverdueTasks.length > 0) {
+                // Re-block the user
+                await auth.updateUserBlockingStatus(currentUser, true, 
+                    `Grace period expired. You still have ${userOverdueTasks.length} overdue task(s) that need attention.`);
+                showNotification('Grace period expired! You have been blocked again due to unresolved overdue tasks.', 'error');
+            } else {
+                // Hide grace period UI
+                auth.hideGracePeriodUI();
+                showNotification('Great! All overdue tasks have been resolved.', 'success');
+            }
+        }
+    },
+
+    // Hide grace period UI
+    hideGracePeriodUI: () => {
+        const blockWarning = document.getElementById('user-block-warning');
+        if (blockWarning) {
+            blockWarning.classList.add('hidden');
+        }
+    },
+
+    // Check if user is in grace period (on page load)
+    checkGracePeriod: () => {
+        const gracePeriodStart = localStorage.getItem('gracePeriodStart');
+        if (gracePeriodStart && !window.auth.isBlocked) {
+            const startTime = parseInt(gracePeriodStart);
+            const elapsed = Date.now() - startTime;
+            const gracePeriodDuration = 5 * 60 * 1000; // 5 minutes
+            
+            if (elapsed < gracePeriodDuration) {
+                // Resume grace period countdown
+                const remaining = gracePeriodDuration - elapsed;
+                auth.showGracePeriodUI();
+                auth.updateGracePeriodDisplay(remaining);
+                
+                const countdownInterval = setInterval(() => {
+                    const newElapsed = Date.now() - startTime;
+                    const newRemaining = gracePeriodDuration - newElapsed;
+                    
+                    if (newRemaining <= 0) {
+                        clearInterval(countdownInterval);
+                        auth.endGracePeriod();
+                    } else {
+                        auth.updateGracePeriodDisplay(newRemaining);
+                    }
+                }, 1000);
+                
+                window.gracePeriodInterval = countdownInterval;
+            } else {
+                // Grace period expired, check overdue tasks
+                auth.endGracePeriod();
+            }
         }
     }
 };
@@ -463,6 +605,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (statusText) statusText.textContent = "Connected";
             if (statusIndicator) statusIndicator.classList.add('connected');
+            
+            // Check if user is in grace period
+            auth.checkGracePeriod();
         } else {
             if (loginModal) loginModal.classList.remove('hidden');
             if (statusText) statusText.textContent = "Ready to login";
