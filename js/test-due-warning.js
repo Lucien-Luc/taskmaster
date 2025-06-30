@@ -76,3 +76,4 @@ console.log('Due Tasks Warning Test Functions Available:');
 console.log('- testDueWarning.createTestDueTask() - Creates a test task due today');
 console.log('- testDueWarning.forceShowWarning() - Force shows the warning');
 console.log('- testDueWarning.cleanupTestTasks() - Removes test tasks');
+console.log('- window.dueTasksWarning.testModal() - Show test modal immediately');

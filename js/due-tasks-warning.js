@@ -10,42 +10,60 @@ window.dueTasksWarning = {
         if (this.isInitialized) return;
         this.isInitialized = true;
         
+        console.log('Due Tasks Warning: Initializing...');
         // Check for due tasks after user login and task data is loaded
         this.setupWarningCheck();
     },
 
     setupWarningCheck: function() {
+        console.log('Due Tasks Warning: Setting up warning check...');
+        
         // Listen for when tasks are loaded and user is authenticated
         const checkInterval = setInterval(() => {
+            console.log('Due Tasks Warning: Checking conditions...', {
+                auth: !!window.auth?.currentUser,
+                taskManager: !!window.taskManager,
+                tasks: window.taskManager?.tasks?.length
+            });
+            
             if (window.auth?.currentUser && window.taskManager?.tasks && window.taskManager.tasks.length >= 0) {
+                console.log('Due Tasks Warning: Conditions met, checking for due tasks...');
                 clearInterval(checkInterval);
                 this.checkAndShowDueTasksWarning();
             }
         }, 500);
 
-        // Also check when tasks change
-        if (window.taskManager) {
-            const originalListenForTaskChanges = window.taskManager.listenForTaskChanges;
-            if (originalListenForTaskChanges) {
-                window.taskManager.listenForTaskChanges = () => {
-                    originalListenForTaskChanges.call(window.taskManager);
-                    // Only show warning on initial load, not on every task change
-                    if (!this.hasShownToday()) {
-                        setTimeout(() => this.checkAndShowDueTasksWarning(), 1000);
-                    }
-                };
+        // Also setup delayed check for after full initialization
+        setTimeout(() => {
+            console.log('Due Tasks Warning: Delayed check after 3 seconds...');
+            if (window.auth?.currentUser && window.taskManager?.tasks) {
+                this.checkAndShowDueTasksWarning();
             }
-        }
+        }, 3000);
     },
 
     checkAndShowDueTasksWarning: function() {
-        if (!window.taskManager?.tasks || this.hasShownToday()) return;
+        console.log('Due Tasks Warning: Checking and showing warning...');
+        
+        if (!window.taskManager?.tasks) {
+            console.log('Due Tasks Warning: No task manager or tasks available');
+            return;
+        }
+        
+        if (this.hasShownToday()) {
+            console.log('Due Tasks Warning: Already shown today');
+            return;
+        }
 
         const dueTasks = this.getTodayDueTasks();
+        console.log('Due Tasks Warning: Found', dueTasks.length, 'tasks due today');
         
         if (dueTasks.length > 0) {
+            console.log('Due Tasks Warning: Showing modal for tasks:', dueTasks);
             this.showDueTasksModal(dueTasks);
             this.markShownToday();
+        } else {
+            console.log('Due Tasks Warning: No tasks due today');
         }
     },
 
@@ -223,6 +241,28 @@ window.dueTasksWarning = {
     showWarning: function() {
         localStorage.removeItem('dueTasksWarningShown');
         this.checkAndShowDueTasksWarning();
+    },
+
+    // Force show with dummy data for testing
+    testModal: function() {
+        console.log('Due Tasks Warning: Showing test modal...');
+        const dummyTasks = [
+            {
+                id: 'test1',
+                title: 'Test Task 1',
+                priority: 'high',
+                category: 'testing',
+                assignedUsers: ['Test User']
+            },
+            {
+                id: 'test2', 
+                title: 'Test Task 2',
+                priority: 'urgent',
+                category: 'development',
+                assignedUsers: ['Test User']
+            }
+        ];
+        this.showDueTasksModal(dummyTasks);
     }
 };
 
